@@ -1,15 +1,26 @@
 import { useState } from "react";
+import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { saveIntakeSettings, getIntakeSettings } from "../utils/storage";
 import ChangeTheme from "./ChangeTheme";
 
 export const IntakeForm = () => {
     const [intakeTime, setIntakeTime] = useState("")    
-
+    const [isSubmitted, setIsSubmitted] = useState(false)
+    
+    useEffect(() => {
+        const settings = getIntakeSettings()
+        if (settings){
+            setIntakeTime(settings)
+            console.log("Intake Time found:" + settings)
+        }else{
+            console.log("No Intake time found")
+        }
+    }, [])
     function handleSubmit(){
         saveIntakeSettings(intakeTime)
-        
-    }
+        setIsSubmitted(true)
+    }   
 
     return (
         <div className="relative min-h-screen overflow-x-hidden overflow-y-hidden">
@@ -19,7 +30,7 @@ export const IntakeForm = () => {
 
                 <h1 className="text-4xl font-bold text-center mb-6">At which time would you like to take your pill?</h1>
                 <input type="time" value={intakeTime} onChange={(e) => setIntakeTime(e.target.value)} className="input input-bordered input-lg w-60 text-center px-4 py-2"/>
-                <button onClick={handleSubmit} className="btn btn-primary btn-lg mt-4">Save</button>
+                <button onClick={handleSubmit} className="btn btn-primary btn-lg mt-4">{isSubmitted ? "Settings saved" : "Save"}</button>
             </div>
         </div>
     )
