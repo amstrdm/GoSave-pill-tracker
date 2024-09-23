@@ -18,6 +18,7 @@ export const IntakeForm = () => {
             console.log("No Intake time found")
         }
     }, [])
+    
     function handleSubmit(){
         saveIntakeSettings(intakeTime)
         setIsSubmitted(true)
