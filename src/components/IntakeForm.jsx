@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { saveIntakeSettings, getIntakeSettings } from "../utils/storage";
 import ChangeTheme from "./ChangeTheme";
 
 export const IntakeForm = () => {
+    const navigate = useNavigate()
+
     const [intakeTime, setIntakeTime] = useState("")    
     const [isSubmitted, setIsSubmitted] = useState(false)
     
     useEffect(() => {
         const settings = getIntakeSettings()
         if (settings){
-            setIntakeTime(settings)
-            console.log("Intake Time found:" + settings)
+            navigate("/")
         }else{
             console.log("No Intake time found")
         }
@@ -20,6 +21,10 @@ export const IntakeForm = () => {
     function handleSubmit(){
         saveIntakeSettings(intakeTime)
         setIsSubmitted(true)
+        setTimeout(() => {
+            navigate("/cycle")
+        }, 500)
+        
     }   
 
     return (
