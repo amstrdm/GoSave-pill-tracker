@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './components/Home';
 import Settings from './components/Settings';
 import IntakeForm from './components/IntakeForm';
+import PillCycleForm from './components/PillCycleForm';
 
 function App() {
   // Initialize service worker for PWA
@@ -17,6 +18,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/intake" element={<IntakeForm />} />
+        <Route path="/cycle" element={<PillCycleForm />} />
       </Routes>
     </Router>
   );
