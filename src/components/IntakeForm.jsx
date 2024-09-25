@@ -13,7 +13,7 @@ export const IntakeForm = () => {
     useEffect(() => {
         const settings = getIntakeSettings()
         if (settings){
-            navigate("/")
+            navigate("/cycle")
         }else{
             console.log("No Intake time found")
         }

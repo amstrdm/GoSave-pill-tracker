@@ -3,26 +3,36 @@ import { saveCycleSettings, getCycleSettings } from "../utils/storage"
 import { useNavigate } from "react-router-dom";
 
 import ChangeTheme from "./ChangeTheme"
-
-function PillCycleForm() {
+// We want to check if the form is being used from the settings panel in which case we will tweak some things
+function PillCycleForm({ isSettings, onSave }) { 
 
     const navigate = useNavigate()
+    let storedPillDays, storedBreakDays, storedStartDate 
 
-    const [pillDays, setPillDays] = useState("")
-    const [breakDays, setBreakDays] = useState("")
-    const [startDate, setStartDate] = useState("")   
+    if(isSettings && getCycleSettings()) {
+        ({ pillDays: storedPillDays, breakDays: storedBreakDays, startDate: storedStartDate } = getCycleSettings())
+        console.log("get cycle settings", getCycleSettings())
+        console.log("storedPillDays: ", storedPillDays)
+        
+    }
+
+    console.log("storedPillDays: " + storedPillDays)
+    const [pillDays, setPillDays] = isSettings ? useState(storedPillDays) : useState("")
+    const [breakDays, setBreakDays] = isSettings ? useState(storedBreakDays) : useState("")
+    const [startDate, setStartDate] = isSettings ? useState(storedStartDate) : useState("")   
 
     const [isSubmitted, setisSubmitted] = useState(false)
-
+    
     useEffect(() => {
-        const cycleSettings = getCycleSettings()
 
-        if (cycleSettings){
+        const cycleSettings = getCycleSettings()
+        if (cycleSettings && !isSettings){
             navigate("/")
         }else{
-            console.log("No Cycle Data found")
+            console.log("No Cycle Data found or accesing from Settings Panel")
         }
     }, [])
+
 
     function handleSubmit() {
         const cycleData = { pillDays, breakDays, startDate }
@@ -30,16 +40,24 @@ function PillCycleForm() {
         console.log("Cycle Data saved to Local Storage")
 
         setisSubmitted(true)
+
+        //Check if onSave function is provided, if it is notify parent that Settings were modified
+        if (onSave) {
+            onSave();
+        }
+      
+
         setTimeout(() => {
-            navigate("/")
+            setisSubmitted(false)
         }, 500)
     }
 
     return(
-        <div className="relative min-h-screen overflow-x-hidden overflow-y-hidden">
-            <ChangeTheme />
-            <div className="min-h-screen flex flex-col justify-center items-center">
-                <h1 className="text-4xl font-bold text-center mb-6">Set your pill cycle</h1>
+        <div className={`relative ${isSettings ? "" : "min-h-screen"} overflow-x-hidden overflow-y-hidden`}>
+            {isSettings ? null : <ChangeTheme />}
+            
+            <div className={`${isSettings ? "" : "min-h-screen"} flex flex-col justify-center items-center`}>
+                <h1 className="text-4xl font-bold text-center mb-6">{isSettings ? "Settings" : "Set your pill cycle"}</h1>
 
                 <div className="flex flex-col items-center space-y-6">
                     <div className="form-control w-60">
@@ -80,7 +98,7 @@ function PillCycleForm() {
                         />
                     </div>
 
-                    <button onClick={handleSubmit} className="btn btn-primary btn-lg mt-4">{isSubmitted ? "Saved Cycle Settings" : "Save Cycle"}</button>
+                    <button onClick={handleSubmit} className="btn btn-primary btn-lg mt-4">{isSubmitted ? "Saved Settings" : "Save"}</button>
                 </div>
             </div>
         </div>
