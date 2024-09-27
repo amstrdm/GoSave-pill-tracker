@@ -1,25 +1,29 @@
 import { useEffect, useState } from "react"
-import { saveCycleSettings, getCycleSettings } from "../utils/storage"
+import { saveCycleSettings, getCycleSettings, getIntakeSettings, saveIntakeSettings } from "../../utils/storage"
 import { useNavigate } from "react-router-dom";
 
-import ChangeTheme from "./ChangeTheme"
+import ChangeTheme from "../ChangeTheme"
 // We want to check if the form is being used from the settings panel in which case we will tweak some things
 function PillCycleForm({ isSettings, onSave }) { 
 
     const navigate = useNavigate()
     let storedPillDays, storedBreakDays, storedStartDate 
+    let storedIntakeTime
 
     if(isSettings && getCycleSettings()) {
         ({ pillDays: storedPillDays, breakDays: storedBreakDays, startDate: storedStartDate } = getCycleSettings())
-        console.log("get cycle settings", getCycleSettings())
-        console.log("storedPillDays: ", storedPillDays)
         
     }
 
-    console.log("storedPillDays: " + storedPillDays)
+    if(isSettings && getIntakeSettings()){
+        storedIntakeTime = getIntakeSettings()
+    }
+
+
     const [pillDays, setPillDays] = isSettings ? useState(storedPillDays) : useState("")
     const [breakDays, setBreakDays] = isSettings ? useState(storedBreakDays) : useState("")
     const [startDate, setStartDate] = isSettings ? useState(storedStartDate) : useState("")   
+    const [intakeTime, setIntakeTime] = isSettings ? useState(storedIntakeTime) : useState("")
 
     const [isSubmitted, setisSubmitted] = useState(false)
     
@@ -28,8 +32,6 @@ function PillCycleForm({ isSettings, onSave }) {
         const cycleSettings = getCycleSettings()
         if (cycleSettings && !isSettings){
             navigate("/")
-        }else{
-            console.log("No Cycle Data found or accesing from Settings Panel")
         }
     }, [])
 
@@ -37,7 +39,8 @@ function PillCycleForm({ isSettings, onSave }) {
     function handleSubmit() {
         const cycleData = { pillDays, breakDays, startDate }
         saveCycleSettings(cycleData)
-        console.log("Cycle Data saved to Local Storage")
+        saveIntakeSettings(intakeTime)
+        
 
         setisSubmitted(true)
 
@@ -97,6 +100,20 @@ function PillCycleForm({ isSettings, onSave }) {
                             className="input input-bordered input-lg w-full text-center px-4 py-2"
                         />
                     </div>
+
+                    {isSettings && (
+                        <div className="form-control w-60">
+                        <label className="label">
+                            <span className="label-text font-semibold">Intake Time</span>
+                        </label>
+                        <input
+                            type="time"
+                            value={intakeTime}
+                            onChange={(e) => setIntakeTime(e.target.value)}
+                            className="input input-bordered input-lg w-full text-center px-4 py-2"
+                        />
+                    </div>
+                    )}
 
                     <button onClick={handleSubmit} className="btn btn-primary btn-lg mt-4">{isSubmitted ? "Saved Settings" : "Save"}</button>
                 </div>

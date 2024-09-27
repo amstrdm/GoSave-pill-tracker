@@ -1,9 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './components/Home';
-import SettingsPanel from './components/Settings';
-import IntakeForm from './components/IntakeForm';
-import PillCycleForm from './components/PillCycleForm';
+import IntakeForm from './components/Forms/IntakeForm';
+import PillCycleForm from './components/Forms/PillCycleForm';
 
 function App() {
   // Initialize service worker for PWA

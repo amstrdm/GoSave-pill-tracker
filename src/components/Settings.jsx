@@ -1,5 +1,5 @@
 import ChangeTheme from "./ChangeTheme"
-import PillCycleForm from "./PillCycleForm"
+import PillCycleForm from "./Forms/PillCycleForm"
 
 function SettingsPanel({ isOpen=true, onSave }) {
     if (!isOpen) return null
@@ -22,6 +22,7 @@ function SettingsPanel({ isOpen=true, onSave }) {
                     <form method="dialog" className="flex items-center justify-center">
                         {/* if there is a button in form, it will close the modal */}
                         <PillCycleForm isSettings={true} onSave={onSave}/>
+                        
                     </form>
                 </div>
             </div>

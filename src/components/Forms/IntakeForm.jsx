@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { saveIntakeSettings, getIntakeSettings } from "../utils/storage";
-import ChangeTheme from "./ChangeTheme";
+import { saveIntakeSettings, getIntakeSettings } from "../../utils/storage";
+import ChangeTheme from "../ChangeTheme";
 
 export const IntakeForm = () => {
     const navigate = useNavigate()

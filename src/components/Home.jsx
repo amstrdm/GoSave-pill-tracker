@@ -1,3 +1,13 @@
+/*
+    TODO:
+    // 1. 
+
+
+*/ 
+
+
+
+
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
@@ -11,7 +21,6 @@ function Home() {
     const [cycleSettings, setCycleSettings] = useState(getCycleSettings()) 
 
     useEffect(() => {
-        console.log("running useEffect")
         if (!cycleSettings || !intakeSettings){
             navigate("/intake")
         }
@@ -32,14 +41,15 @@ function Home() {
 
     return(
         
-        <div className="flex flex-col justify-center items-center mt-9">
+        <div className="flex flex-col justify-center items-center min-h-screen">
             <SettingsPanel onSave={updateSettings}/>
-            
-            <h1 className="text-6xl text-center font-bold">Home</h1> <br />
-            <p className="text-2xl m-5">Intake Settings: {intakeSettings}</p><br />
-            <p className="text-2xl m-5">Pill Days: {cycleSettings.pillDays}</p>
-            <p className="text-2xl m-5">Break Days: {cycleSettings.breakDays}</p>
-            <p className="text-2xl m-5">Start Date: {cycleSettings.startDate}</p>
+            <div className="flex flex-col items-center justify-center">
+                <h1 className="text-6xl text-center font-bold">Home</h1> <br />
+                <p className="text-2xl m-5">Intake Settings: {intakeSettings}</p><br />
+                <p className="text-2xl m-5">Pill Days: {cycleSettings.pillDays}</p>
+                <p className="text-2xl m-5">Break Days: {cycleSettings.breakDays}</p>
+                <p className="text-2xl m-5">Start Date: {cycleSettings.startDate}</p>
+            </div>
         </div>
     )
 }
