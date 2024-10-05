@@ -39,7 +39,8 @@ function PillCycleForm({ isSettings, onSave }) {
     function handleSubmit() {
         const cycleData = { pillDays, breakDays, startDate }
         saveCycleSettings(cycleData)
-        saveIntakeSettings(intakeTime)
+        
+        {isSettings && saveIntakeSettings(intakeTime)}
         
 
         setisSubmitted(true)
@@ -48,10 +49,12 @@ function PillCycleForm({ isSettings, onSave }) {
         if (onSave) {
             onSave();
         }
-      
 
+        //set isSubmitted to false so if the user is accessing htrough the settings panel
+        // the submit button doesnt stay stuck on "saved Settings"
         setTimeout(() => {
             setisSubmitted(false)
+            navigate("/")
         }, 500)
     }
 
