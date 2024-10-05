@@ -1,0 +1,13 @@
+{
+    "display": "standalone",
+    "name": "GoSave",
+    "short_name": "GoSave",
+    "start_url": "/",
+    "icons": [
+        {
+        "src": "./contraceptive-pill.png",
+        "sizes": "512x512",
+        "type": "image/png"
+        }
+    ]
+}
