@@ -3,15 +3,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './components/Home';
 import IntakeForm from './components/Forms/IntakeForm';
 import PillCycleForm from './components/Forms/PillCycleForm';
+import Notification from './components/Notification';
 
 function App() {
-  // Initialize service worker for PWA
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(() => console.log('Service Worker registered'));
-  }
 
   return (  
+    <>
+    <Notification />    
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -19,6 +17,7 @@ function App() {
         <Route path="/cycle" element={<PillCycleForm isSettings={false}/>} />
       </Routes>
     </Router>
+    </>
   );
 }
 
