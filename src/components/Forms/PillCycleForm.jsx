@@ -50,7 +50,7 @@ function PillCycleForm({ isSettings, onSave }) {
             onSave();
         }
 
-        //set isSubmitted to false so if the user is accessing htrough the settings panel
+        //set isSubmitted to false so if the user is accessing through the settings panel
         // the submit button doesnt stay stuck on "saved Settings"
         setTimeout(() => {
             setisSubmitted(false)
