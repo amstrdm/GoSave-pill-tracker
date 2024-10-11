@@ -15,14 +15,18 @@ function SettingsPanel({ isOpen=true, onSave }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
             </svg>
         </button>
-
+        {/* We're importing the PillCycleForm Component here since a lot of the settings are the same.
+         However We need to add other settings like changing the IntakeTime as well as define different handling depending on if it's being called from the Form or the Settingspanel.
+        This leads to majorly fucked up code in the PillCycleForm Component.
+        This if fucked. Like this is an absoluetely horrible approach. Quite frankly I do not know why I chose to do it this way I cannot exlain it in Hindsight*/}
         <dialog id="my_modal_1" className="modal">
             <div className="modal-box overflow-hidden">
                 <div className="modal-action justify-center">
                     <form method="dialog" className="flex items-center justify-center">
-                        {/* if there is a button in form, it will close the modal */}
                         <PillCycleForm isSettings={true} onSave={onSave}/>
-                        
+                        {/* A logical approach would've been to just add the prompt for the Intake time here directly.
+                        Instead I put it in a conditional inside of the PillCycleForm.jsx Component.
+                        I do not know what I was smoking*/}
                     </form>
                 </div>
             </div>
