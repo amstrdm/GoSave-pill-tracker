@@ -7,43 +7,53 @@ import ChangeTheme from "../ChangeTheme"
 function PillCycleForm({ isSettings, onSave }) { 
 
     const navigate = useNavigate()
-    let storedPillDays, storedBreakDays, storedStartDate 
-    let storedIntakeTime
 
-    if(isSettings && getCycleSettings()) {
-        ({ pillDays: storedPillDays, breakDays: storedBreakDays, startDate: storedStartDate } = getCycleSettings())
-        
-    }
-
-    if(isSettings && getIntakeSettings()){
-        storedIntakeTime = getIntakeSettings()
-    }
-
-
-    const [pillDays, setPillDays] = isSettings ? useState(storedPillDays) : useState("")
-    const [breakDays, setBreakDays] = isSettings ? useState(storedBreakDays) : useState("")
-    const [startDate, setStartDate] = isSettings ? useState(storedStartDate) : useState("")   
-    const [intakeTime, setIntakeTime] = isSettings ? useState(storedIntakeTime) : useState("")
-
-    const [isSubmitted, setisSubmitted] = useState(false)
+    const [pillDays, setPillDays] = useState(isSettings ? "" : "");
+    const [breakDays, setBreakDays] = useState(isSettings ? "" : "");
+    const [startDate, setStartDate] = useState(isSettings ? "" : "");   
+    const [intakeTime, setIntakeTime] = useState(isSettings ? "" : "");
+    const [isSubmitted, setIsSubmitted] = useState(false);
     
     useEffect(() => {
 
-        const cycleSettings = getCycleSettings()
-        if (cycleSettings && !isSettings){
-            navigate("/")
-        }
-    }, [])
+        const fetchData = async () => {
+            if (isSettings) {
+                const cycleSettings = await getCycleSettings();
+                if (cycleSettings) {
+                    setPillDays(cycleSettings.pillDays);
+                    setBreakDays(cycleSettings.breakDays);
+                    setStartDate(cycleSettings.startDate);
+                    console.log("Fetched cycle data from settings panel: ", pillDays, breakDays, startDate)
+                }
+
+                const intakeSettings = await getIntakeSettings();
+                if (intakeSettings) {
+                    setIntakeTime(intakeSettings);
+                }
+            } else {
+                const cycleSettings = await getCycleSettings();
+                if (cycleSettings.breakDays && cycleSettings.pillDays && cycleSettings.startDate) {
+                    console.log("Cycle Settings: ", cycleSettings);
+                    navigate("/");
+                }
+            }
+        };
+
+        fetchData();
+
+    }, [isSettings, navigate])
 
 
-    function handleSubmit() {
+    async function handleSubmit() {
         const cycleData = { pillDays, breakDays, startDate }
-        saveCycleSettings(cycleData)
+        await saveCycleSettings(cycleData)
         
-        {isSettings && saveIntakeSettings(intakeTime)}
+        if (isSettings){
+            await saveIntakeSettings(intakeTime)
+        }
         
 
-        setisSubmitted(true)
+        setIsSubmitted(true)
 
         //Check if onSave function is provided, if it is notify parent that Settings were modified
         if (onSave) {
@@ -53,7 +63,7 @@ function PillCycleForm({ isSettings, onSave }) {
         //set isSubmitted to false so if the user is accessing through the settings panel
         // the submit button doesnt stay stuck on "saved Settings"
         setTimeout(() => {
-            setisSubmitted(false)
+            setIsSubmitted(false)
             navigate("/")
         }, 500)
     }

@@ -17,25 +17,52 @@ import SettingsPanel from "./Settings"
 function Home() {
 
     const navigate = useNavigate()
-    const [intakeSettings, setIntakeSettings] = useState(getIntakeSettings()) 
-    const [cycleSettings, setCycleSettings] = useState(getCycleSettings()) 
+    const [localIntakeSettings, setLocalIntakeSettings] = useState("") 
+    const [localCycleSettings, setLocalCycleSettings] = useState({pillDays: "", breakDays: "", startDate: ""}) 
 
     useEffect(() => {
-        if (!cycleSettings || !intakeSettings){
-            navigate("/intake")
+        const fetchSettings  = async () => {
+            const intake = await getIntakeSettings()
+            const cycle = await getCycleSettings()
+
+            console.log("intake and cycle: ", intake, cycle)
+
+            if (intake){
+                setLocalIntakeSettings(intake)
+                console.log("localIntakeSettings:", localIntakeSettings)
+            }
+
+            if (cycle && cycle.pillDays && cycle.breakDays && cycle.startDate){
+                setLocalCycleSettings(cycle)
+            }
+            
+            if (!cycle || !cycle.pillDays || !cycle.breakDays || !cycle.startDate || !intake){
+                console.log("Missing intake or cycle settings, redirecting to intake page.")
+                navigate("/intake")
+            }
         }
         
-    }, [ intakeSettings, cycleSettings, navigate])
+        fetchSettings()
+        
+    }, [navigate])
     
 
     // Function to update settings from the settings panel
-    function updateSettings(){
-        setIntakeSettings(getIntakeSettings())
-        setCycleSettings(getCycleSettings())
+    async function updateSettings(){
+        const intake = await getIntakeSettings()
+        const cycle = await getCycleSettings()
+
+        if (intake){
+            setLocalIntakeSettings(intake)
+        }
+
+        if (cycle){
+            setLocalCycleSettings(cycle)
+        }
     }
 
     // If settings are missing, don't render anything (since useEffect will handle redirecting)
-    if (!cycleSettings || !intakeSettings) {
+    if (!localCycleSettings || !localIntakeSettings) {
         return null; // You could also render a loading or redirect message here
     }
 
@@ -45,10 +72,10 @@ function Home() {
             <SettingsPanel onSave={updateSettings}/>
             <div className="flex flex-col items-center justify-center">
                 <h1 className="text-6xl text-center font-bold">Home</h1> <br />
-                <p className="text-2xl m-5">Intake Settings: {intakeSettings}</p><br />
-                <p className="text-2xl m-5">Pill Days: {cycleSettings.pillDays}</p>
-                <p className="text-2xl m-5">Break Days: {cycleSettings.breakDays}</p>
-                <p className="text-2xl m-5">Start Date: {cycleSettings.startDate}</p>
+                <p className="text-2xl m-5">Intake Settings: {localIntakeSettings}</p><br />
+                <p className="text-2xl m-5">Pill Days: {localCycleSettings.pillDays}</p>
+                <p className="text-2xl m-5">Break Days: {localCycleSettings.breakDays}</p>
+                <p className="text-2xl m-5">Start Date: {localCycleSettings.startDate}</p>
             </div>
         </div>
     )
