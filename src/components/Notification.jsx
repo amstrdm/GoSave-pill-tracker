@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { messaging } from "../firebase";
 import { getToken, onMessage } from "firebase/messaging";
-import axiosInstance from "../axiosInstance";
- 
+import api from "../axiosInstance";
+ import { saveFcmToken } from "../utils/storage";
 
 function Notification() {
   useEffect(() => {
@@ -20,13 +20,14 @@ function Notification() {
         if (token) {
           console.log("Token generated: ", token);
           
+          // save token to local storage
+          saveFcmToken(token)
+
           // Send token to the backend
-          await axiosInstance.post("/save-token", { token }, {
-            headers: {
-              "Content-Type": "application/json",
-            },
+          await api.post("/save-token", {
+            "fcmToken": token
           });
-          console.log("Token saved successfully:", token);
+          console.log("Token saved to database successfully:", token);
         } else {
           console.log("No registration token available.");
         }
