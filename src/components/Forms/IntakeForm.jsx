@@ -11,16 +11,23 @@ export const IntakeForm = () => {
     const [isSubmitted, setIsSubmitted] = useState(false)
     
     useEffect(() => {
-        const settings = getIntakeSettings()
-        if (settings){
-            navigate("/cycle")
-        }else{
-            console.log("No Intake time found")
+
+        const fetchSettings = async () => {
+            const settings = await getIntakeSettings()
+        
+            if (settings){
+                navigate("/cycle")
+            }else{
+                console.log("No Intake time found")
+            }
         }
-    }, [])
+        
+        fetchSettings()
+
+    }, [navigate])
     
-    function handleSubmit(){
-        saveIntakeSettings(intakeTime)
+    async function handleSubmit (){
+        await saveIntakeSettings(intakeTime)
         setIsSubmitted(true)
         setTimeout(() => {
             navigate("/cycle")
