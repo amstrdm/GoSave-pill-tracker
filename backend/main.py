@@ -328,7 +328,31 @@ def reset_day_all():
 
     print(f"Finished scheduling user notifications. {User.query.count()} total users of which {pill_day_count} had their pill day")
 
+# Function to set up notifications when a user first registers
+# Essntially does the same thing as reset_day_all but only to a given user instead of looping htrough the whole DB
+@app.route("/schedule-notifications", ["POST"])
+def reset_day_individual():
+    data = request.get_json()
+    fcm_token = data.get("fcmToken")
 
+    if fcm_token:
+        is_pill_day()
+        user = User.query.filter_by(fcm_token=fcm_token).first()
+        if user:
+            is_pill_day = is_pill_day(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
+            if is_pill_day:
+                schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token)
+        else:
+            return jsonify({"error": f"Could not find user {fcm_token} in database"})
+    else:
+        return jsonify({"error": "fcmToken is required"}), 400
+
+@app.route("/pill-taken", ["POST"])
+def pill_taken():
+    data = request.get_json
+    fcm_token = data.get("fcmToken")
+
+    cancel_existing_notifications(fcm_token)
 
 create_database(app)
 
