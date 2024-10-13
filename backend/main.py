@@ -1,28 +1,17 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from datetime import datetime, timedelta
+import datetime
+from datetime import timedelta
 from os import path
 import firebase_admin
 from firebase_admin import credentials, messaging
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from flask_apscheduler import APScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
-from apscheduler.jobstores.base import ConflictingIdError
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from colorama import Fore, Style
 
 
-# Initialize APScheduler
-jobstores= {
-    "default": SQLAlchemyJobStore(url="sqlite:///jobs.sqlite")
-}
-
-executors = {
-    "default": ThreadPoolExecutor(10)
-}
-
-scheduler = BackgroundScheduler(jobstores=jobstores, executors=executors)
-scheduler.start()
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate("account_key.json")
@@ -38,6 +27,22 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 CORS(app=app)
 db.init_app(app)
+
+# Initialize APScheduler
+class Config:
+    SCHEDULER_API_ENABLED = True
+    SCHEDULER_JOBSTORES = {
+        "default": SQLAlchemyJobStore(url=f"sqlite:///jobs.sqlite")
+    }
+    SCHEDULER_EXECUTORS = {
+        "default": ThreadPoolExecutor(10)
+    }
+
+app.config.from_object(Config())
+
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -79,14 +84,14 @@ def database():
         if intake_time:
             try:
                 # Try to parse the time in HH:MM format
-                validated_intake_time = datetime.strptime(intake_time, '%H:%M')
+                validated_intake_time = datetime.datetime.strptime(intake_time, '%H:%M')
             except ValueError:
                 return jsonify({"error": "Invalid time format"}), 400
 
         #Check if passed Date is valid
         if start_date:
             try:
-                validated_start_date = datetime.strptime(cycle_data["startDate"], "%Y-%m-%d")
+                validated_start_date = datetime.datetime.strptime(cycle_data["startDate"], "%Y-%m-%d")
             except ValueError:
                 return(jsonify({"error": "invalid date format"})), 400
 
@@ -195,12 +200,11 @@ def send_notification():
         return f"Error sending Message: {e}"
 
 """
-from datetime import datetime
 
 
 def format_time(intake_time, current_time):
-    intake_time = datetime.strptime(intake_time, "%H:%M")
-    current_time = datetime.strptime(current_time, "%H:%M")
+    intake_time = datetime.datetime.strptime(intake_time, "%H:%M")
+    current_time = datetime.datetime.strptime(current_time, "%H:%M")
 
     time_difference = intake_time - current_time
 
@@ -241,7 +245,7 @@ def cancel_existing_notifications(fcm_token):
 
 def schedule_notifications(intake_time, fcm_token):
     # Will check if there are scheduled notifications for the day. If there are clear them.
-    # Afterwards it will schedule notifications based on the pased intake time:
+    # Afterwards it will schedule notifications based on the passed intake time:
         # 2 hours before intake time
         # notification every 30 minutes until intake time
         # after that every 15 minutes until 2 hours past intake time
@@ -250,7 +254,7 @@ def schedule_notifications(intake_time, fcm_token):
     cancel_existing_notifications(fcm_token)
 
     # Parse Time
-    intake_time = datetime.strptime(intake_time, '%H:%M')
+    intake_time = datetime.datetime.strptime(intake_time, '%H:%M')
     
     # Calculate start and end of notification window 
     start_time = intake_time - timedelta(hours=2)
@@ -260,35 +264,71 @@ def schedule_notifications(intake_time, fcm_token):
     # Increasing current_time by 30 minutes each loop until it is greater than intake_time in which case it will break the loop
     current_time = start_time
     while current_time <= intake_time:
-        try:
-            scheduler.add_job(
-                send_notification,
-                "date",
-                run_date=current_time,
-                args=[fcm_token, "Your Pill time is coming up!", f"It's {format_time(intake_time, current_time)} before your Intake time. Take your Pill!"],
-                id=f"{fcm_token}_{current_time.isoformat()}"
-            )
-        # Handle Cases where Job Id already exists (this should normally never happen)
-        except ConflictingIdError:
-            print(Fore.YELLOW + "\n\nWARNING: Scheduler tried scheduling notification with job id which is already present in jobs.\n\n" + Style.RESET_ALL)
-            pass
+        scheduler.add_job(
+            send_notification,
+            "date",
+            run_date=current_time,
+            args=[fcm_token, "Your Pill time is coming up!", f"It's {format_time(intake_time, current_time)} before your Intake time. Take your Pill!"],
+            id=f"{fcm_token}_{current_time.isoformat()}"
+        )
         current_time += timedelta(minutes=30)
     
     # After intake time, schedule notifications every 15 minutes until 2 hours after
     current_time = intake_time
     while current_time <= end_time:
-        try:
-            scheduler.add_job(
-                send_notification,
-                "date",
-                run_date=current_time,
-                args=[fcm_token, "Your intake Time passed!", f"It's {format_time(intake_time, current_time)} PAST your Intake time. Take your Pill QUICKLY!"],
-                id=f"{fcm_token}_{current_time.isoformat()}"
-            )
-        except ConflictingIdError:
-            print(Fore.YELLOW + "\n\nWARNING: Scheduler tried scheduling notification with job id which is already present in jobs.\n\n" + Style.RESET_ALL)
-            pass
+        scheduler.add_job(
+            send_notification,
+            "date",
+            run_date=current_time,
+            args=[fcm_token, "Your intake Time passed!", f"It's {format_time(intake_time, current_time)} PAST your Intake time. Take your Pill QUICKLY!"],
+            id=f"{fcm_token}_{current_time.isoformat()}"
+        )
         current_time += timedelta(minutes=15)
+
+    print(f"Scheduled notifications for {fcm_token}\n")
+
+# To check if it is a pill day or not we take the total length of the cycle and use modulus arithmetic to 
+# calculate the current position within the recurring cycle.
+# Since the cycle always starts with the pill days we now just have to check if day in cycle is smaller than or equal to
+# our pill days. If it is that means we aren't past the pill days yet and we can return true.
+def is_pill_day(pill_days, break_days, start_date_str, current_date=None):
+    if current_date is None:
+        current_date = datetime.date.today()
+    start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    days_since_start = (current_date-start_date).days
+    cycle_length = pill_days + break_days
+    day_in_cycle = days_since_start % cycle_length 
+    return day_in_cycle <= pill_days
+
+
+
+# The reset_day_all function will run every day at 12:00 PM
+@scheduler.task("cron", id="reset_day_all", hour=12, minute=0)
+def reset_day_all():
+
+    # Variable to count how many people had their pill day at execution
+    pill_day_count = 0
+
+    # Query all Users
+    users = User.query.all()
+
+    # Loop through each user: Check if it's a pill day. If it is schedule notifications
+    for user in users: 
+        fcm_token = user.fcm_token
+        intake_time = user.intake_time
+        pill_days = user.pill_days
+        break_days = user.break_days
+        start_date = user.start_date
+
+        is_pill_day = is_pill_day(pill_days, break_days, start_date_str=start_date)
+
+        if is_pill_day:
+            schedule_notifications(intake_time, fcm_token)
+            pill_day_count += 1
+
+    print(f"Finished scheduling user notifications. {User.query.count()} total users of which {pill_day_count} had their pill day")
+
+
 
 create_database(app)
 
