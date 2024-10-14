@@ -268,6 +268,10 @@ def schedule_notifications(intake_time, fcm_token):
         intake_time_parsed = datetime.datetime.strptime(intake_time, '%H:%M')
         today = datetime.date.today()
         intake_datetime = datetime.datetime.combine(today, intake_time_parsed.time())
+
+        if intake_datetime < datetime.datetime.now():
+            intake_datetime += timedelta(days=1)
+
         
         # Calculate start and end of notification window 
         start_time = intake_datetime - timedelta(hours=2)
@@ -335,9 +339,9 @@ def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_da
                 start_date_str = user.start_date
 
             else:
-                jsonify({"error:" "user not found in database"})
+                return jsonify({"error:" "user not found in database"})
         else:
-            jsonify({"error": "fcmToken is required"})
+            return jsonify({"error": "fcmToken is required"})
 
 
 
@@ -346,10 +350,10 @@ def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_da
     cycle_length = pill_days + break_days
     day_in_cycle = days_since_start % cycle_length
     
-    if request:
+    if has_request_context():
         return jsonify({"isPillDay": day_in_cycle <= pill_days})
     else:
-        return day_in_cycle <= pill_days
+        return day_in_cycle < pill_days
 
 
 
@@ -379,6 +383,7 @@ def reset_day_all():
             schedule_notifications(intake_time, fcm_token)
             pill_day_count += 1
 
+    db.session.commit()
     print(f"Finished scheduling user notifications. {User.query.count()} total users of which {pill_day_count} had their pill day")
 
 # Function to set up notifications when a user first registers or changes intake time for the day
@@ -429,14 +434,18 @@ def pill_taken():
     if user.is_pill_taken == True:
         # Cancel all existing notifications for the user with the given fcm_token if is_pill_taken was set to true since that means the user took their pill
         cancel_existing_notifications(fcm_token)
+        message = "Notifications canceled for pill intake, database updated!"
     elif user.is_pill_taken == False:
         # Schedule new notifications for the user with the given fcm_token if is_pill_taken was set to false since that means the user did not take their pill
         schedule_notifications(intake_time, fcm_token)
+        message = "Notifications scheduled for pill intake, database updated!"
+
     print(f"Updated is_pill_taken to {user.is_pill_taken}")
-    return jsonify({"message": "Notifications canceled for pill intake, database updated!"}), 200
+    return jsonify({"message": message}), 200
 
 
 if __name__ == "__main__":
     create_database(app)
-    app.run(debug=True)
     scheduler.start() 
+    app.run(debug=True)
+    
