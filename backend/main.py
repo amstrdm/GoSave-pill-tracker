@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, has_request_context
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import datetime
@@ -43,7 +43,6 @@ app.config.from_object(Config())
 
 scheduler = APScheduler()
 scheduler.init_app(app)
-scheduler.start()
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True) # primary user id
@@ -307,7 +306,7 @@ def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_da
     if current_date is None:
         current_date = datetime.date.today()
     # Check if function is being called from endpoint if it is retrieve values to calculate pill day from database
-    if request:
+    if has_request_context():
         data = request.get_json()
         fcm_token = data.get("fcmToken")
         
@@ -413,3 +412,5 @@ def pill_taken():
 if __name__ == "__main__":
     create_database(app)
     app.run(debug=True)
+    scheduler.start() 
+
