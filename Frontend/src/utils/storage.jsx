@@ -24,20 +24,11 @@ export const saveIntakeSettings = async (settings) => {
         console.log("Intake Response from backend:", response.data);
 
     } catch (err) {
-        // Log the full error object to understand the issue
-        if (err.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            console.error("Error saving data to backend:", err.response.data);
-            console.error("Status code:", err.response.status);
-            console.error("Headers:", err.response.headers);
-        } else if (err.request) {
-            // The request was made but no response was received
-            console.error("No response received:", err.request);
-        } else {
-            // Something happened in setting up the request that triggered an Error
-            console.error("Error in setting up the request:", err.message);
-        }
+        console.error("Failed saving Intake Time to Database:", err);
+        return (<div className="flex flex-col justify-center items-center">
+            <p className="text-6xl">Saving Cycle Settings to Database failed</p><br/>
+            <p className="text-6xl">Check Console for more info</p>
+        </div>)
     }
 }
 // This is a really retarded way of doing this but since we're imp
@@ -71,20 +62,11 @@ export const saveCycleSettings = async (cycleData) => {
         console.log("Cycle Response from backend:", response.data);
 
     } catch (err) {
-        // Log the full error object to understand the issue
-        if (err.response) {
-            // The request was made and the server responded with a status code
-            // that falls out of the range of 2xx
-            console.error("Error saving data to backend:", err.response.data);
-            console.error("Status code:", err.response.status);
-            console.error("Headers:", err.response.headers);
-        } else if (err.request) {
-            // The request was made but no response was received
-            console.error("No response received:", err.request);
-        } else {
-            // Something happened in setting up the request that triggered an Error
-            console.error("Error in setting up the request:", err.message);
-        }
+        console.error("Failed saving cycle Data to Database:", err);
+        return (<div className="flex flex-col justify-center items-center">
+            <p className="text-6xl">Saving Cycle Settings to Database failed</p><br/>
+            <p className="text-6xl">Check Console for more info</p>
+        </div>)
     }
 }
 

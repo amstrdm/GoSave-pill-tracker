@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { saveCycleSettings, getCycleSettings, getIntakeSettings, saveIntakeSettings } from "../../utils/storage"
+import { saveCycleSettings, getCycleSettings, getIntakeSettings, saveIntakeSettings } from "../../utils/storage.jsx"
 import { useNavigate } from "react-router-dom";
 
 import ChangeTheme from "../ChangeTheme"
