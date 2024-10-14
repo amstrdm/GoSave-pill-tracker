@@ -3,4 +3,4 @@
 
 *.db
 
-/account_key.json
+/config/

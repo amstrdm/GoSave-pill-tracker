@@ -14,7 +14,7 @@ from colorama import Fore, Style
 
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate("account_key.json")
+cred = credentials.Certificate("config/account_key.json")
 firebase_admin.initialize_app(cred)
 
 # Initialize Database
