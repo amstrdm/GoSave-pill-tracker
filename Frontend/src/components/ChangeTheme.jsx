@@ -20,7 +20,7 @@ function ChangeTheme() {
     };
 
     return (
-        <div className="absolute top-0 right-0 m-2">
+        <div className="absolute top-0 left-0 m-2">
             <div className="dropdown">
                 {/* Button to toggle dropdown */}
                 <div 
