@@ -20,6 +20,7 @@ firebase_admin.initialize_app(cred)
 # Initialize Database
 db = SQLAlchemy()
 DB_NAME = "database.db"
+JOB_STORE_NAME = "instance/jobs.sqlite"
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_NAME}"
@@ -32,7 +33,7 @@ db.init_app(app)
 class Config:
     SCHEDULER_API_ENABLED = True
     SCHEDULER_JOBSTORES = {
-        "default": SQLAlchemyJobStore(url=f"sqlite:///jobs.sqlite")
+        "default": SQLAlchemyJobStore(url=f"sqlite:///{JOB_STORE_NAME}")
     }
     SCHEDULER_EXECUTORS = {
         "default": ThreadPoolExecutor(10)
@@ -55,7 +56,8 @@ class User(db.Model):
 
 def create_database(app):
     if not path.exists(DB_NAME):
-        db.create_all(app=app)
+        with app.app_context():
+            db.create_all()  # Ensure all tables are created
         print("Created Database!")
 
 
@@ -148,7 +150,7 @@ def database():
                 print(user_data)
                 return jsonify({"user": user_data}), 200
             else:
-                return jsonify({"error:" "User not found"}), 404
+                return jsonify({"error": "User not found"}), 404
         else:
             return jsonify({"error": "fcmToken query parameter is required"}), 400
 
@@ -239,7 +241,7 @@ def send_notification(fcm_token, title, body):
         return f"Error sending Message: {e}"
 
 def cancel_existing_notifications(fcm_token):
-    for job in scheduler.get_jobs:
+    for job in scheduler.get_jobs():
         if job.id.startswith(fcm_token):
             job.remove()
 
@@ -291,14 +293,39 @@ def schedule_notifications(intake_time, fcm_token):
 # calculate the current position within the recurring cycle.
 # Since the cycle always starts with the pill days we now just have to check if day in cycle is smaller than or equal to
 # our pill days. If it is that means we aren't past the pill days yet and we can return true.
-def is_pill_day(pill_days, break_days, start_date_str, current_date=None):
+@app.route("/is-pill-day", methods=["POST"])
+def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_date=None):
     if current_date is None:
         current_date = datetime.date.today()
+    # Check if function is being called from endpoint if it is retrieve values to calculate pill day from database
+    if request:
+        data = request.get_json()
+        fcm_token = data.get("fcmToken")
+        
+        if fcm_token:
+            user = User.query.filter_by(fcm_token=fcm_token).first()
+
+            if user:
+                pill_days = user.pill_days
+                break_days = user.break_days
+                start_date_str = user.start_date
+
+            else:
+                jsonify({"error:" "user not found in database"})
+        else:
+            jsonify({"error": "fcmToken is required"})
+
+
+
     start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
     days_since_start = (current_date-start_date).days
     cycle_length = pill_days + break_days
-    day_in_cycle = days_since_start % cycle_length 
-    return day_in_cycle <= pill_days
+    day_in_cycle = days_since_start % cycle_length
+    
+    if request:
+        return jsonify({"isPillDay": day_in_cycle <= pill_days})
+    else:
+        return day_in_cycle <= pill_days
 
 
 
@@ -328,33 +355,45 @@ def reset_day_all():
 
     print(f"Finished scheduling user notifications. {User.query.count()} total users of which {pill_day_count} had their pill day")
 
-# Function to set up notifications when a user first registers
-# Essntially does the same thing as reset_day_all but only to a given user instead of looping htrough the whole DB
-@app.route("/schedule-notifications", ["POST"])
+# Function to set up notifications when a user first registers or changes intake time for the day
+# Essentially does the same thing as reset_day_all but only to a given user instead of looping through the whole DB
+@app.route("/schedule-notifications", methods=["POST"])
 def reset_day_individual():
     data = request.get_json()
     fcm_token = data.get("fcmToken")
+    intake_time = data.get("intakeTime")
 
     if fcm_token:
-        is_pill_day()
         user = User.query.filter_by(fcm_token=fcm_token).first()
         if user:
             is_pill_day = is_pill_day(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
             if is_pill_day:
-                schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token)
+                # add database call here which changes the next_notification table
+
+                # Check if intake time is given in ther request which means that the temporary intake time got changed and is being passed in the request.
+                # If it is not given, the endpoint is likely called following initial registration in which case we'll just get the intake time from DB
+                if intake_time:
+                    schedule_notifications(intake_time=intake_time, fcm_token=fcm_token)    
+                else:
+                    schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token)
         else:
             return jsonify({"error": f"Could not find user {fcm_token} in database"})
     else:
         return jsonify({"error": "fcmToken is required"}), 400
 
-@app.route("/pill-taken", ["POST"])
+@app.route("/pill-taken", methods=["POST"])
 def pill_taken():
-    data = request.get_json
+    data = request.get_json()
     fcm_token = data.get("fcmToken")
+    if not fcm_token:
+        return jsonify({"error": "fcmToken is required"}), 400
 
+    # Cancel all existing notifications for the user with the given fcm_token
     cancel_existing_notifications(fcm_token)
+    
+    return jsonify({"message": "Notifications canceled for pill intake"}), 200
 
-create_database(app)
 
 if __name__ == "__main__":
+    create_database(app)
     app.run(debug=True)
