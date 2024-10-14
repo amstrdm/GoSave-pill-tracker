@@ -53,7 +53,7 @@ class User(db.Model):
     break_days = db.Column(db.Integer) # The amount of break days specified by the user
     start_date = db.Column(db.String(10)) # The start date of the cycle. Stored as YYYY-MM-DD
     is_pill_taken = db.Column(db.Boolean, default=False) # A boolean tracking if the user has clicked is_pill_taken
-    next_notification = db.Column(db.String(50))
+    next_notification = db.Column(db.String(50)) # A string which keeps track of the next notification the user is going to receive.
 
 
 def create_database(app):
@@ -253,43 +253,50 @@ def schedule_notifications(intake_time, fcm_token):
         # 2 hours before intake time
         # notification every 30 minutes until intake time
         # after that every 15 minutes until 2 hours past intake time
-     
-    # First cancel all existing notifications 
-    cancel_existing_notifications(fcm_token)
-
-    # Parse Time
-    intake_time = datetime.datetime.strptime(intake_time, '%H:%M')
     
-    # Calculate start and end of notification window 
-    start_time = intake_time - timedelta(hours=2)
-    end_time = intake_time + timedelta(hours=2)
+    user = User.query.filter_by(fcm_token=fcm_token).first()
 
-    # Schedule notifications 2 hours before intake every 30 minutes 
-    # Increasing current_time by 30 minutes each loop until it is greater than intake_time in which case it will break the loop
-    current_time = start_time
-    while current_time <= intake_time:
-        scheduler.add_job(
-            send_notification,
-            "date",
-            run_date=current_time,
-            args=[fcm_token, "Your Pill time is coming up!", f"It's {format_time(intake_time, current_time)} before your Intake time. Take your Pill!"],
-            id=f"{fcm_token}_{current_time.isoformat()}"
-        )
-        current_time += timedelta(minutes=30)
-    
-    # After intake time, schedule notifications every 15 minutes until 2 hours after
-    current_time = intake_time
-    while current_time <= end_time:
-        scheduler.add_job(
-            send_notification,
-            "date",
-            run_date=current_time,
-            args=[fcm_token, "Your intake Time passed!", f"It's {format_time(intake_time, current_time)} PAST your Intake time. Take your Pill QUICKLY!"],
-            id=f"{fcm_token}_{current_time.isoformat()}"
-        )
-        current_time += timedelta(minutes=15)
+    if user:
+        # First cancel all existing notifications 
+        cancel_existing_notifications(fcm_token)
 
-    print(f"Scheduled notifications for {fcm_token}\n")
+        # Parse Time
+        intake_time = datetime.datetime.strptime(intake_time, '%H:%M')
+        
+        # Calculate start and end of notification window 
+        start_time = intake_time - timedelta(hours=2)
+        end_time = intake_time + timedelta(hours=2)
+
+        # Schedule notifications 2 hours before intake every 30 minutes 
+        # Increasing current_time by 30 minutes each loop until it is greater than intake_time in which case it will break the loop
+        current_time = start_time
+        while current_time <= intake_time:
+            scheduler.add_job(
+                send_notification,
+                "date",
+                run_date=current_time,
+                args=[fcm_token, "Your Pill time is coming up!", f"It's {format_time(intake_time, current_time)} before your Intake time. Take your Pill!"],
+                id=f"{fcm_token}_{current_time.isoformat()}"
+            )
+            current_time += timedelta(minutes=30)
+        
+        # After intake time, schedule notifications every 15 minutes until 2 hours after
+        current_time = intake_time
+        while current_time <= end_time:
+            scheduler.add_job(
+                send_notification,
+                "date",
+                run_date=current_time,
+                args=[fcm_token, "Your intake Time passed!", f"It's {format_time(intake_time, current_time)} PAST your Intake time. Take your Pill QUICKLY!"],
+                id=f"{fcm_token}_{current_time.isoformat()}"
+            )
+            current_time += timedelta(minutes=15)
+
+        user.next_notification = str(intake_time)
+
+        print(f"Scheduled notifications for {fcm_token}\n")
+    else:
+        return f"User by fcm token {fcm_token} not found"
 
 # To check if it is a pill day or not we take the total length of the cycle and use modulus arithmetic to 
 # calculate the current position within the recurring cycle.
