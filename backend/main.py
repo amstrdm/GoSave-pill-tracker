@@ -404,9 +404,15 @@ def pill_taken():
         user.is_pill_taken = is_pill_taken
     else:
         return jsonify({"error": f"Could not find user {fcm_token}"}), 404
-    # Cancel all existing notifications for the user with the given fcm_token
-    cancel_existing_notifications(fcm_token)
-    return jsonify({"message": "Notifications canceled for pill intake"}), 200
+
+    # Check if the database value was just set to true or to false
+    if user.is_pill_taken == True:
+        # Cancel all existing notifications for the user with the given fcm_token if it was set to true since that means the user took their pill
+        cancel_existing_notifications(fcm_token)
+    elif user.is_pill_taken == False:
+        # Schedule new notifications for the user witzh the given fcm_token if it was set to false since that means the user did not take their pill
+        schedule_notifications(fcm_token)
+    return jsonify({"message": "Notifications canceled for pill intake, database updated!"}), 200
 
 
 if __name__ == "__main__":
