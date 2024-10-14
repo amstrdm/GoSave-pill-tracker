@@ -206,20 +206,25 @@ def send_notification():
 
 
 def format_time(intake_time, current_time):
-    intake_time = datetime.datetime.strptime(intake_time, "%H:%M")
-    current_time = datetime.datetime.strptime(current_time, "%H:%M")
 
     time_difference = intake_time - current_time
 
-    # Get hours and minutes from the timedelta
-    hours, remainder = divmod(time_difference.seconds, 3600)
-    minutes = remainder // 60
+    total_seconds = time_difference.total_seconds()
+
+    # Determine if time difference is negative
+    if total_seconds >= 0:
+        prefix = ''
+    else:
+        prefix = '-'
+        total_seconds = abs(total_seconds)
+
+    # Calculate hours and minutes
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
 
     # Format the output as HH:MM
-    if minutes == 0:
-        formatted_difference = hours
-    else:
-        formatted_difference = f"{hours}:{minutes:02d}"  # :02d ensures two digits for minutes
+    # Format the output as HH:MM
+    formatted_difference = f"{prefix}{hours}:{minutes:02d}"
 
     return formatted_difference
 
@@ -260,38 +265,49 @@ def schedule_notifications(intake_time, fcm_token):
         cancel_existing_notifications(fcm_token)
 
         # Parse Time
-        intake_time = datetime.datetime.strptime(intake_time, '%H:%M')
+        intake_time_parsed = datetime.datetime.strptime(intake_time, '%H:%M')
+        today = datetime.date.today()
+        intake_datetime = datetime.datetime.combine(today, intake_time_parsed.time())
         
         # Calculate start and end of notification window 
-        start_time = intake_time - timedelta(hours=2)
-        end_time = intake_time + timedelta(hours=2)
+        start_time = intake_datetime - timedelta(hours=2)
+        end_time = intake_datetime + timedelta(hours=2)
 
         # Schedule notifications 2 hours before intake every 30 minutes 
         # Increasing current_time by 30 minutes each loop until it is greater than intake_time in which case it will break the loop
         current_time = start_time
-        while current_time <= intake_time:
+        while current_time <= intake_datetime:
             scheduler.add_job(
-                send_notification,
-                "date",
+                func=send_notification,
+                trigger="date",
                 run_date=current_time,
-                args=[fcm_token, "Your Pill time is coming up!", f"It's {format_time(intake_time, current_time)} before your Intake time. Take your Pill!"],
+                args=[
+                    fcm_token,
+                    "Your Pill time is coming up!",
+                    f"It's {format_time(intake_datetime, current_time)} before your Intake time. Take your Pill!"
+                ],
                 id=f"{fcm_token}_{current_time.isoformat()}"
             )
             current_time += timedelta(minutes=30)
         
         # After intake time, schedule notifications every 15 minutes until 2 hours after
-        current_time = intake_time
+        current_time = intake_datetime + timedelta(minutes=15) # Start after intake time
         while current_time <= end_time:
             scheduler.add_job(
-                send_notification,
-                "date",
+                func=send_notification,
+                trigger="date",
                 run_date=current_time,
-                args=[fcm_token, "Your intake Time passed!", f"It's {format_time(intake_time, current_time)} PAST your Intake time. Take your Pill QUICKLY!"],
+                args=[
+                    fcm_token,
+                    "Your intake Time passed!",
+                    f"It's {format_time(intake_datetime, current_time)} PAST your Intake time. Take your Pill QUICKLY!"
+                ],
                 id=f"{fcm_token}_{current_time.isoformat()}"
             )
             current_time += timedelta(minutes=15)
 
         user.next_notification = str(intake_time)
+        db.session.commit()
 
         print(f"Scheduled notifications for {fcm_token}\n")
     else:
@@ -386,6 +402,7 @@ def reset_day_individual():
                     schedule_notifications(intake_time=intake_time, fcm_token=fcm_token)    
                 else:
                     schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token)
+                return jsonify({"message": "Succesfully scheduled notifications"})
         else:
             return jsonify({"error": f"Could not find User: {fcm_token}"}), 404
     else:
@@ -401,17 +418,21 @@ def pill_taken():
         return jsonify({"error": "fcmToken is required"}), 400
     
     if user:
+        # update database
         user.is_pill_taken = is_pill_taken
+        intake_time = user.intake_time
+        db.session.commit()
     else:
         return jsonify({"error": f"Could not find user {fcm_token}"}), 404
 
     # Check if the database value was just set to true or to false
     if user.is_pill_taken == True:
-        # Cancel all existing notifications for the user with the given fcm_token if it was set to true since that means the user took their pill
+        # Cancel all existing notifications for the user with the given fcm_token if is_pill_taken was set to true since that means the user took their pill
         cancel_existing_notifications(fcm_token)
     elif user.is_pill_taken == False:
-        # Schedule new notifications for the user witzh the given fcm_token if it was set to false since that means the user did not take their pill
-        schedule_notifications(fcm_token)
+        # Schedule new notifications for the user with the given fcm_token if is_pill_taken was set to false since that means the user did not take their pill
+        schedule_notifications(intake_time, fcm_token)
+    print(f"Updated is_pill_taken to {user.is_pill_taken}")
     return jsonify({"message": "Notifications canceled for pill intake, database updated!"}), 200
 
 
@@ -419,4 +440,3 @@ if __name__ == "__main__":
     create_database(app)
     app.run(debug=True)
     scheduler.start() 
-
