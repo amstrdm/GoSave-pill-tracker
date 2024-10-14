@@ -46,12 +46,14 @@ scheduler.init_app(app)
 scheduler.start()
 
 class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    fcm_token = db.Column(db.String(255), unique=True)
-    intake_time = db.Column(db.String(5)) # Stored as HH:MM
-    pill_days = db.Column(db.Integer)
-    break_days = db.Column(db.Integer)
-    start_date = db.Column(db.String(10)) # Stored as YYYY-MM-DD
+    id = db.Column(db.Integer, primary_key=True) # primary user id
+    fcm_token = db.Column(db.String(255), unique=True) # Firebase Cloud Messaging Token. Used to send notifications and as a unqiue identifier for each user
+    intake_time = db.Column(db.String(5)) # The permanent Intake Time inputted by the user. Stored as HH:MM
+    pill_days = db.Column(db.Integer) # The amount of pill days specified by the user
+    break_days = db.Column(db.Integer) # The amount of break days specified by the user
+    start_date = db.Column(db.String(10)) # The start date of the cycle. Stored as YYYY-MM-DD
+    is_pill_taken = db.Column(db.Boolean, default=False) # A boolean tracking if the user has clicked is_pill_taken
+    next_notification = db.Column(db.String(50))
 
 
 def create_database(app):
@@ -346,6 +348,8 @@ def reset_day_all():
         pill_days = user.pill_days
         break_days = user.break_days
         start_date = user.start_date
+        
+        user.is_pill_taken = False # Set is_pill_taken to false for all users at 12pm since a new day starts
 
         is_pill_day = is_pill_day(pill_days, break_days, start_date_str=start_date)
 
@@ -377,7 +381,7 @@ def reset_day_individual():
                 else:
                     schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token)
         else:
-            return jsonify({"error": f"Could not find user {fcm_token} in database"})
+            return jsonify({"error": f"Could not find User: {fcm_token}"}), 404
     else:
         return jsonify({"error": "fcmToken is required"}), 400
 
@@ -385,12 +389,17 @@ def reset_day_individual():
 def pill_taken():
     data = request.get_json()
     fcm_token = data.get("fcmToken")
+    is_pill_taken = data.get("isPillTaken")
+    user = User.query.filter_by(fcm_token=fcm_token).first()
     if not fcm_token:
         return jsonify({"error": "fcmToken is required"}), 400
-
+    
+    if user:
+        user.is_pill_taken = is_pill_taken
+    else:
+        return jsonify({"error": f"Could not find user {fcm_token}"}), 404
     # Cancel all existing notifications for the user with the given fcm_token
     cancel_existing_notifications(fcm_token)
-    
     return jsonify({"message": "Notifications canceled for pill intake"}), 200
 
 
