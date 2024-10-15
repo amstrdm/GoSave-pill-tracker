@@ -257,6 +257,12 @@ def cancel_existing_notifications(fcm_token):
     for job in scheduler.get_jobs():
         if job.id.startswith(fcm_token):
             job.remove()
+    user = User.query.filter_by(fcm_token=fcm_token).first()
+    if user:
+        user.next_notification = None
+        db.session.commit()
+        
+            
 
 def schedule_notifications(intake_time, fcm_token):
     # Will check if there are scheduled notifications for the day. If there are clear them.
@@ -420,35 +426,50 @@ def reset_day_individual():
     else:
         return jsonify({"error": "fcmToken is required"}), 400
 
-@app.route("/pill-taken", methods=["POST"])
+@app.route("/pill-taken", methods=["POST", "GET"])
 def pill_taken():
-    data = request.get_json()
-    fcm_token = data.get("fcmToken")
-    is_pill_taken = data.get("isPillTaken")
-    user = User.query.filter_by(fcm_token=fcm_token).first()
-    if not fcm_token:
-        return jsonify({"error": "fcmToken is required"}), 400
+    if request.method == "POST":
+        data = request.get_json()
+        fcm_token = data.get("fcmToken")
+        is_pill_taken = data.get("isPillTaken")
+        user = User.query.filter_by(fcm_token=fcm_token).first()
+        if not fcm_token:
+            return jsonify({"error": "fcmToken is required"}), 400
+        
+        if user:
+            # update database
+            user.is_pill_taken = is_pill_taken
+            intake_time = user.intake_time
+            db.session.commit()
+        else:
+            return jsonify({"error": f"Could not find user {fcm_token}"}), 404
+
+        # Check if the database value was just set to true or to false
+        if user.is_pill_taken == True:
+            # Cancel all existing notifications for the user with the given fcm_token if is_pill_taken was set to true since that means the user took their pill
+            cancel_existing_notifications(fcm_token)
+            message = "Notifications canceled for pill intake, database updated!"
+        elif user.is_pill_taken == False:
+            # Schedule new notifications for the user with the given fcm_token if is_pill_taken was set to false since that means the user did not take their pill
+            schedule_notifications(intake_time, fcm_token)
+            message = "Notifications scheduled for pill intake, database updated!"
+
+        print(f"Updated is_pill_taken to {user.is_pill_taken}")
+        return jsonify({"message": message}), 200
     
-    if user:
-        # update database
-        user.is_pill_taken = is_pill_taken
-        intake_time = user.intake_time
-        db.session.commit()
-    else:
-        return jsonify({"error": f"Could not find user {fcm_token}"}), 404
+    elif request.method == "GET":
+        fcm_token = request.args.get("fcmToken")
 
-    # Check if the database value was just set to true or to false
-    if user.is_pill_taken == True:
-        # Cancel all existing notifications for the user with the given fcm_token if is_pill_taken was set to true since that means the user took their pill
-        cancel_existing_notifications(fcm_token)
-        message = "Notifications canceled for pill intake, database updated!"
-    elif user.is_pill_taken == False:
-        # Schedule new notifications for the user with the given fcm_token if is_pill_taken was set to false since that means the user did not take their pill
-        schedule_notifications(intake_time, fcm_token)
-        message = "Notifications scheduled for pill intake, database updated!"
+        if fcm_token:
+            user = User.query.filter_by(fcm_token=fcm_token).first()
 
-    print(f"Updated is_pill_taken to {user.is_pill_taken}")
-    return jsonify({"message": message}), 200
+            if user:
+                is_pill_taken = user.is_pill_taken
+                return jsonify({"pillTaken": is_pill_taken})
+            else:
+                return jsonify({"error": "Could not find user in Database"}), 404
+        else:
+            return jsonify({"error": "fcmToken query parameter is required"}), 400
 
 @app.route("/next-notification", methods=["GET"])
 def return_next_notification():
