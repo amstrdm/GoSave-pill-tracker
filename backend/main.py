@@ -61,6 +61,9 @@ def create_database(app):
             db.create_all()  # Ensure all tables are created
         print("Created Database!")
 
+@app.route("/", methods=["GET"])
+def server_up():
+    return jsonify({"message": "The server is up and running!"}), 200
 
 @app.route("/database", methods=["GET", "POST"])
 def database():
