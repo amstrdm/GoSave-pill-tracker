@@ -134,9 +134,10 @@ function Home() {
             {isPillDay ? (<div className="flex flex-col items-center justify-center">
                 <button className="btn btn-circle h-60 w-60" onClick={handlePillTaken}>
                     {pillTaken ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-48">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                        </svg>) : (<svg className="size-48" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">  <path stroke="none" d="M0 0h24v24H0z"/>  <path d="M4.5 12.5l8 -8a4.94 4.94 0 0 1 7 7l-8 8a4.94 4.94 0 0 1 -7 -7" />  <path d="M8.5 8.5l7 7" /></svg>)}
+                        </svg>) : 
+                        (<svg className="size-48" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">  <path stroke="none" d="M0 0h24v24H0z"/>  <path d="M4.5 12.5l8 -8a4.94 4.94 0 0 1 7 7l-8 8a4.94 4.94 0 0 1 -7 -7" />  <path d="M8.5 8.5l7 7" /></svg>)}
                 </button>
 
                 <p className="text-4xl mt-10 font-bold">Current Intake Time: 20:00 </p>
@@ -156,7 +157,7 @@ function Home() {
             </div>) : 
                 (<div className="flex flex-col items-center justify-center">
                     <p className="text-6xl">Take a break!</p><br />
-                    <p>It's one of your break days right now no need to take your pill today</p>
+                    <p>It's one of your break days today no need to take your pill today</p>
                 </div>)}
         </div>
     )
