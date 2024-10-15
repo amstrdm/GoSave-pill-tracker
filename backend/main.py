@@ -3,13 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import datetime
 from datetime import timedelta
+import os 
 from os import path
 import firebase_admin
 from firebase_admin import credentials, messaging
 from flask_apscheduler import APScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from colorama import Fore, Style
 
 
 
@@ -17,12 +17,17 @@ from colorama import Fore, Style
 cred = credentials.Certificate("config/account_key.json")
 firebase_admin.initialize_app(cred)
 
+app = Flask(__name__, instance_relative_config=True)
+
+
+if not path.exists(app.instance_path):
+    os.makedirs(app.instance_path)
+
 # Initialize Database
 db = SQLAlchemy()
-DB_NAME = "database.db"
-JOB_STORE_NAME = "instance/jobs.sqlite"
+JOB_STORE_NAME = path.join(app.instance_path, "jobs.sqlite")
+DB_NAME = path.join(app.instance_path, "database.db")
 
-app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_NAME}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -56,10 +61,9 @@ class User(db.Model):
 
 
 def create_database(app):
-    if not path.exists(DB_NAME):
-        with app.app_context():
-            db.create_all()  # Ensure all tables are created
-        print("Created Database!")
+    with app.app_context():
+        db.create_all()  # Ensure all tables are created
+        print("Ensured all Tables are created")
 
 @app.route("/", methods=["GET"])
 def server_up():
@@ -151,7 +155,7 @@ def database():
                         "startDate": user.start_date
                     }
                 }
-                print(user_data)
+                print("Returned user data", user_data)
                 return jsonify({"user": user_data}), 200
             else:
                 return jsonify({"error": "User not found"}), 404
@@ -446,6 +450,19 @@ def pill_taken():
     print(f"Updated is_pill_taken to {user.is_pill_taken}")
     return jsonify({"message": message}), 200
 
+@app.route("/next-notification", methods=["GET"])
+def return_next_notification():
+    fcm_token = request.args.get("fcmToken")
+
+    if fcm_token:
+        user = User.query.filter_by(fcm_token=fcm_token).first()
+        if user:
+            next_notification = user.next_notification
+            return jsonify({"next_notification": next_notification})
+        else:
+            return jsonify({"error": "Could not find user in Database"}), 404
+    else:
+        return jsonify({"error": "fcmToken query parameter is required"}), 400
 
 if __name__ == "__main__":
     create_database(app)
