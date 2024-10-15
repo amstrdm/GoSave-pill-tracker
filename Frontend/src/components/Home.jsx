@@ -6,13 +6,16 @@ import SettingsPanel from "./Settings"
 import ChangeTheme from "./ChangeTheme"
 import api from "../axiosInstance"
 import { getFcmToken } from "../utils/storage"
+import ChangeIntakeTime from "./ChangeIntakeTime"
+import RemindHome from "./RemindHome"
+import NextNotification from "./NextNotification"
 
 function Home() {
 
     const navigate = useNavigate()
     const [localIntakeSettings, setLocalIntakeSettings] = useState("") 
     const [localCycleSettings, setLocalCycleSettings] = useState({pillDays: "", breakDays: "", startDate: ""}) 
-    const [isPillDay, setIsPillDay] = useState(false)
+    const [isPillDay, setIsPillDay] = useState(true)
     const [settingsUpdated, setSettingsUpdated] = useState(false)
     const [pillTaken, setPillTaken] = useState(false)
 
@@ -66,6 +69,28 @@ function Home() {
 
         checkPillDay()
 
+        const checkPillTaken = async () => {
+            const fcmToken = getFcmToken()
+
+            try {
+                const response = await api.get("/pill-taken", {
+                    params: {"fcmToken": fcmToken}
+                })
+                if (response.data && typeof response.data.pillTaken === "boolean"){
+                    setPillTaken(response.data.pillTaken)
+                    console.log("Set pillTaken to ", response.data.pillTaken)
+                }
+                else {
+                    console.error("Unexpected response format:", response.data);
+                    return false; // Return false if the format is not as expected
+                }
+            }catch(err){
+                console.error("Error checking pill day:", err)
+                return false
+            }
+        }
+
+        checkPillTaken()
     }, [navigate, settingsUpdated])
 
     
@@ -118,14 +143,6 @@ function Home() {
         }
     }
 
-    function handleChangeIntakeTime(){
-
-    }
-
-    function handleRemindWhenHome(){
-
-    }
-
     return(
         
         <div className="flex flex-col justify-center items-center min-h-screen">
@@ -140,19 +157,11 @@ function Home() {
                         (<svg className="size-48" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">  <path stroke="none" d="M0 0h24v24H0z"/>  <path d="M4.5 12.5l8 -8a4.94 4.94 0 0 1 7 7l-8 8a4.94 4.94 0 0 1 -7 -7" />  <path d="M8.5 8.5l7 7" /></svg>)}
                 </button>
 
-                <p className="text-4xl mt-10 font-bold">Current Intake Time: 20:00 </p>
+                <NextNotification/>
 
                 <div className="flex flex-row items-center justify-center">
-                    <button className="btn mt-12 ml-5 mr-5" onClick={handleChangeIntakeTime}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>Change Intake Time
-                    </button>
-                    <button className="btn mt-12 ml-5 mr-5" onClick={handleRemindWhenHome}>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                        </svg>Remind when Home
-                    </button>
+                    <ChangeIntakeTime/>
+                    <RemindHome/>
                 </div>
             </div>) : 
                 (<div className="flex flex-col items-center justify-center">
