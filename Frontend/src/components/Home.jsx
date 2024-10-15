@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
-import { getCycleSettings, getIntakeSettings } from "../utils/storage.jsx"
+import { getCycleSettings, getIntakeSettings } from "../utils/storage"
 import SettingsPanel from "./Settings"
 import ChangeTheme from "./ChangeTheme"
 import api from "../axiosInstance"
-import { getFcmToken } from "../utils/storage.jsx"
+import { getFcmToken } from "../utils/storage"
 
 function Home() {
 
