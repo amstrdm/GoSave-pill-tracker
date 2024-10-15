@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { messaging } from "../firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import api from "../axiosInstance";
- import { saveFcmToken } from "../utils/storage.jsx";
+import { saveFcmToken } from "../utils/storage";
+
 
 function Notification() {
   useEffect(() => {
