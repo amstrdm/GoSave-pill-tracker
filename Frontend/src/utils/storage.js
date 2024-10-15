@@ -25,10 +25,7 @@ export const saveIntakeSettings = async (settings) => {
 
     } catch (err) {
         console.error("Failed saving Intake Time to Database:", err);
-        return (<div className="flex flex-col justify-center items-center">
-            <p className="text-6xl">Saving Cycle Settings to Database failed</p><br/>
-            <p className="text-6xl">Check Console for more info</p>
-        </div>)
+        throw err // Throw the error to be caught in the calling component
     }
 }
 // This is a really retarded way of doing this but since we're imp
@@ -63,10 +60,7 @@ export const saveCycleSettings = async (cycleData) => {
 
     } catch (err) {
         console.error("Failed saving cycle Data to Database:", err);
-        return (<div className="flex flex-col justify-center items-center">
-            <p className="text-6xl">Saving Cycle Settings to Database failed</p><br/>
-            <p className="text-6xl">Check Console for more info</p>
-        </div>)
+        throw err;// Throw the error to be caught in the calling component
     }
 }
 
