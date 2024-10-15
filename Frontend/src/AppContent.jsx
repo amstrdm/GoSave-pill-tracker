@@ -11,7 +11,7 @@ function AppContent() {
   const [error, setError] = useState(null);
   const location = useLocation();   
   const [isLoading, setIsLoading] = useState(true)
-
+    
   const checkServer = async () => {
     setIsLoading(true)
     try {
