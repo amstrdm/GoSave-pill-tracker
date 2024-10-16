@@ -157,7 +157,7 @@ function Home() {
                         (<svg className="size-48" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">  <path stroke="none" d="M0 0h24v24H0z"/>  <path d="M4.5 12.5l8 -8a4.94 4.94 0 0 1 7 7l-8 8a4.94 4.94 0 0 1 -7 -7" />  <path d="M8.5 8.5l7 7" /></svg>)}
                 </button>
 
-                <NextNotification/>
+                <NextNotification pillTaken={pillTaken}/>
 
                 <div className="flex flex-row items-center justify-center">
                     <ChangeIntakeTime/>
