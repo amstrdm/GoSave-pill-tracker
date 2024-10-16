@@ -269,7 +269,7 @@ def cancel_existing_notifications(fcm_token):
         
             
 
-def schedule_notifications(intake_time, fcm_token):
+def schedule_notifications(intake_time, fcm_token, interval):
     # Will check if there are scheduled notifications for the day. If there are clear them.
     # Afterwards it will schedule notifications based on the passed intake time:
         # 2 hours before intake time
@@ -303,23 +303,27 @@ def schedule_notifications(intake_time, fcm_token):
         # Calculate start and end of notification window in UTC
         start_time_utc = (intake_datetime_local - timedelta(hours=2)).astimezone(pytz.utc)
         end_time_utc = (intake_datetime_local + timedelta(hours=2)).astimezone(pytz.utc)
+        
+        # The passed interval parameter decides if the function is gonna schedule notifications ahead of the intake time to prepare the user
+        # to take their pill.
 
         # Schedule notifications 2 hours before intake every 30 minutes 
         # Increasing current_time by 30 minutes each loop until it is greater than intake_time in which case it will break the loop
-        current_time_utc = start_time_utc
-        while current_time_utc <= intake_datetime_utc:
-            scheduler.add_job(
-                func=send_notification,
-                trigger="date",
-                run_date=current_time_utc,
-                args=[
-                    fcm_token,
-                    "Your Pill time is coming up!",
-                    f"It's {format_time(intake_datetime_local, current_time_utc.astimezone(user_timezone))} before your Intake time. Take your Pill!"
-                ],
-                id=f"{fcm_token}_{current_time_utc.isoformat()}"
-            )
-            current_time_utc += timedelta(minutes=30)
+        if interval == True:
+            current_time_utc = start_time_utc
+            while current_time_utc <= intake_datetime_utc:
+                scheduler.add_job(
+                    func=send_notification,
+                    trigger="date",
+                    run_date=current_time_utc,
+                    args=[
+                        fcm_token,
+                        "Your Pill time is coming up!",
+                        f"It's {format_time(intake_datetime_local, current_time_utc.astimezone(user_timezone))} before your Intake time. Take your Pill!"
+                    ],
+                    id=f"{fcm_token}_{current_time_utc.isoformat()}"
+                )
+                current_time_utc += timedelta(minutes=30)
         
         # After intake time, schedule notifications every 15 minutes until 2 hours after
         current_time_utc = intake_datetime_utc + timedelta(minutes=15) # Start after intake time
@@ -404,7 +408,7 @@ def reset_day_all():
         is_pill_day = is_pill_day(pill_days, break_days, start_date_str=start_date)
 
         if is_pill_day:
-            schedule_notifications(intake_time, fcm_token)
+            schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
             pill_day_count += 1
 
     db.session.commit()
@@ -417,22 +421,26 @@ def reset_day_individual():
     data = request.get_json()
     fcm_token = data.get("fcmToken")
     intake_time = data.get("intakeTime")
+    interval = data.get("interval")
 
     if fcm_token:
         user = User.query.filter_by(fcm_token=fcm_token).first()
         if user:
             is_pill_day = is_pill_day(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
             if is_pill_day:
-                # Check if intake time is given in ther request which means that the temporary intake time got changed and is being passed in the request.
-                # If it is not given, the endpoint is likely called following initial registration in which case we'll just get the intake time from DB
-                if intake_time:
-                    schedule_notifications_reponse = schedule_notifications(intake_time=intake_time, fcm_token=fcm_token)
-                    # We want to return an error if schedule_notifications returns that the passed time is in the past
-                    if schedule_notifications_reponse == "passed_time_in_past":
-                        return jsonify({"error:" "passed intake time is in the past"})    
+                if interval:
+                    # Check if intake time is given in ther request which means that the temporary intake time got changed and is being passed in the request.
+                    # If it is not given, the endpoint is likely called following initial registration in which case we'll just get the intake time from DB
+                    if intake_time:
+                        schedule_notifications_reponse = schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=interval)
+                        # We want to return an error if schedule_notifications returns that the passed time is in the past
+                        if schedule_notifications_reponse == "passed_time_in_past":
+                            return jsonify({"error:" "passed intake time is in the past"})    
+                    else:
+                        schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token, interval=interval)
+                    return jsonify({"message": "Succesfully scheduled notifications"})
                 else:
-                    schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token)
-                return jsonify({"message": "Succesfully scheduled notifications"})
+                    return jsonify({"error": "interval required"}), 400
         else:
             return jsonify({"error": f"Could not find User: {fcm_token}"}), 404
     else:
@@ -449,10 +457,13 @@ def pill_taken():
             return jsonify({"error": "fcmToken is required"}), 400
         
         if user:
-            # update database
-            user.is_pill_taken = is_pill_taken
-            intake_time = user.intake_time
-            db.session.commit()
+            if is_pill_taken:
+                # update database
+                user.is_pill_taken = is_pill_taken
+                intake_time = user.intake_time
+                db.session.commit()
+            else:
+                return jsonify({"error": "is_pill_taken required"}), 400
         else:
             return jsonify({"error": f"Could not find user {fcm_token}"}), 404
 
@@ -463,7 +474,7 @@ def pill_taken():
             message = "Notifications canceled for pill intake, database updated!"
         elif user.is_pill_taken == False:
             # Schedule new notifications for the user with the given fcm_token if is_pill_taken was set to false since that means the user did not take their pill
-            schedule_notifications(intake_time, fcm_token)
+            schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
             message = "Notifications scheduled for pill intake, database updated!"
 
         print(f"Updated is_pill_taken to {user.is_pill_taken}")
