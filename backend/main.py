@@ -156,6 +156,7 @@ def database():
                 user_data = {
                     "fcmToken": user.fcm_token,
                     "intakeTime": user.intake_time,
+                    "timezone": user.timezone,
                     "cycleData": {
                         "pillDays": user.pill_days,
                         "breakDays": user.break_days,
