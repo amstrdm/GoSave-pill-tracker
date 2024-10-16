@@ -66,6 +66,16 @@ def create_database(app):
         db.create_all()  # Ensure all tables are created
         print("Ensured all Tables are created")
 
+def str_to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        if value.lower() in ('true', '1'):
+            return True
+        elif value.lower() in ('false', '0'):
+            return False
+    raise ValueError("Invalid value for interval")
+
 @app.route("/", methods=["GET"])
 def server_up():
     return jsonify({"message": "The server is up and running!"}), 200
@@ -405,9 +415,9 @@ def reset_day_all():
         
         user.is_pill_taken = False # Set is_pill_taken to false for all users at 12pm since a new day starts
 
-        is_pill_day = is_pill_day(pill_days, break_days, start_date_str=start_date)
+        pill_day = is_pill_day(pill_days, break_days, start_date_str=start_date)
 
-        if is_pill_day:
+        if pill_day:
             schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
             pill_day_count += 1
 
@@ -422,13 +432,17 @@ def reset_day_individual():
     fcm_token = data.get("fcmToken")
     intake_time = data.get("intakeTime")
     interval = data.get("interval")
-
+    print("INTERVAL: ", interval)
     if fcm_token:
         user = User.query.filter_by(fcm_token=fcm_token).first()
         if user:
-            is_pill_day = is_pill_day(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
-            if is_pill_day:
-                if interval:
+            pill_day = is_pill_day(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
+            if pill_day:
+                if "interval" in data:
+                    try:
+                        interval = str_to_bool(interval)
+                    except ValueError as e:
+                        return jsonify({"error": str(e)}), 400
                     # Check if intake time is given in ther request which means that the temporary intake time got changed and is being passed in the request.
                     # If it is not given, the endpoint is likely called following initial registration in which case we'll just get the intake time from DB
                     if intake_time:
