@@ -10,7 +10,7 @@ from firebase_admin import credentials, messaging
 from flask_apscheduler import APScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-
+import pytz
 
 
 # Initialize Firebase Admin SDK
@@ -43,6 +43,7 @@ class Config:
     SCHEDULER_EXECUTORS = {
         "default": ThreadPoolExecutor(10)
     }
+    SCHEDULER_TIMEZONE = pytz.utc
 
 app.config.from_object(Config())
 
@@ -57,7 +58,7 @@ class User(db.Model):
     break_days = db.Column(db.Integer) # The amount of break days specified by the user
     start_date = db.Column(db.String(10)) # The start date of the cycle. Stored as YYYY-MM-DD
     is_pill_taken = db.Column(db.Boolean, default=False) # A boolean tracking if the user has clicked is_pill_taken
-    next_notification = db.Column(db.String(50)) # A string which keeps track of the next notification the user is going to receive.
+    timezone = db.Column(db.String(50)) # The Users timezone
 
 
 def create_database(app):
@@ -83,12 +84,14 @@ def database():
         user = User.query.filter_by(fcm_token=fcm_token).first()
         
         # Extract values from request only if they exist, otherwise leave them as None
+        timezone = data.get("timezone")
         intake_time = data.get("intakeTime") 
         cycle_data = data.get("cycleData", {}) # default to empty dict if not provided
 
         pill_days = cycle_data.get("pillDays")
         break_days = cycle_data.get("breakDays")
         start_date = cycle_data.get("startDate")
+
 
         #Check if passed time is valid
         if intake_time:
@@ -108,7 +111,9 @@ def database():
         
         # if user exists, update the fields that are passed in request
         if user:
-            print(user)
+            print("Updating Values: ", user)
+            if timezone:
+                user.timezone = timezone
             if intake_time:
                 user.intake_time = intake_time
             if pill_days is not None:
@@ -125,11 +130,13 @@ def database():
             # If user doesn't exist create new record with given data
             # For any missing field pass None  to Database
             new_user = User(
+
                 fcm_token=fcm_token,
                 intake_time=intake_time if intake_time else None,
                 pill_days=pill_days if pill_days is not None else None,
                 break_days=break_days if break_days is not None else None,
-                start_date=start_date if start_date else None
+                start_date=start_date if start_date else None,
+                timezone=timezone if timezone else "UTC" # Default to UTC if not provided 
             )
 
             db.session.add(new_user)
@@ -257,10 +264,7 @@ def cancel_existing_notifications(fcm_token):
     for job in scheduler.get_jobs():
         if job.id.startswith(fcm_token):
             job.remove()
-    user = User.query.filter_by(fcm_token=fcm_token).first()
-    if user:
-        user.next_notification = None
-        db.session.commit()
+    
         
             
 
@@ -277,54 +281,60 @@ def schedule_notifications(intake_time, fcm_token):
         # First cancel all existing notifications 
         cancel_existing_notifications(fcm_token)
 
-        # Parse Time
+        # Parse intake time with user's time zone
+        user_timezone = pytz.timezone(user.timezone)
         intake_time_parsed = datetime.datetime.strptime(intake_time, '%H:%M')
         today = datetime.date.today()
-        intake_datetime = datetime.datetime.combine(today, intake_time_parsed.time())
 
-        if intake_datetime < datetime.datetime.now():
-            intake_datetime += timedelta(days=1)
+        # Create aware datetime in user's local time zone
+        intake_datetime_local = datetime.datetime.combine(today, intake_time_parsed.time())
+        intake_datetime_local = user_timezone.localize(intake_datetime_local)
+
+        # Convert to UTC for scheduling
+        intake_datetime_utc = intake_datetime_local.astimezone(pytz.utc)
+
+        # Return passed_time_in_past if intake time has already passed since that means it can't be scheduled
+        now_utc = datetime.datetime.now(pytz.utc)
+        if intake_datetime_utc < now_utc:
+            return "passed_time_in_past"
 
         
-        # Calculate start and end of notification window 
-        start_time = intake_datetime - timedelta(hours=2)
-        end_time = intake_datetime + timedelta(hours=2)
+        # Calculate start and end of notification window in UTC
+        start_time_utc = (intake_datetime_local - timedelta(hours=2)).astimezone(pytz.utc)
+        end_time_utc = (intake_datetime_local + timedelta(hours=2)).astimezone(pytz.utc)
 
         # Schedule notifications 2 hours before intake every 30 minutes 
         # Increasing current_time by 30 minutes each loop until it is greater than intake_time in which case it will break the loop
-        current_time = start_time
-        while current_time <= intake_datetime:
+        current_time_utc = start_time_utc
+        while current_time_utc <= intake_datetime_utc:
             scheduler.add_job(
                 func=send_notification,
                 trigger="date",
-                run_date=current_time,
+                run_date=current_time_utc,
                 args=[
                     fcm_token,
                     "Your Pill time is coming up!",
-                    f"It's {format_time(intake_datetime, current_time)} before your Intake time. Take your Pill!"
+                    f"It's {format_time(intake_datetime_local, current_time_utc.astimezone(user_timezone))} before your Intake time. Take your Pill!"
                 ],
-                id=f"{fcm_token}_{current_time.isoformat()}"
+                id=f"{fcm_token}_{current_time_utc.isoformat()}"
             )
-            current_time += timedelta(minutes=30)
+            current_time_utc += timedelta(minutes=30)
         
         # After intake time, schedule notifications every 15 minutes until 2 hours after
-        current_time = intake_datetime + timedelta(minutes=15) # Start after intake time
-        while current_time <= end_time:
+        current_time_utc = intake_datetime_utc + timedelta(minutes=15) # Start after intake time
+        while current_time_utc <= end_time_utc:
             scheduler.add_job(
                 func=send_notification,
                 trigger="date",
-                run_date=current_time,
+                run_date=current_time_utc,
                 args=[
                     fcm_token,
                     "Your intake Time passed!",
-                    f"It's {format_time(intake_datetime, current_time)} PAST your Intake time. Take your Pill QUICKLY!"
+                    f"It's {format_time(intake_datetime_local, current_time_utc.astimezone(user_timezone))} PAST your Intake time. Take your Pill QUICKLY!"
                 ],
-                id=f"{fcm_token}_{current_time.isoformat()}"
+                id=f"{fcm_token}_{current_time_utc.isoformat()}"
             )
-            current_time += timedelta(minutes=15)
-
-        user.next_notification = str(intake_time)
-        db.session.commit()
+            current_time_utc += timedelta(minutes=15)
 
         print(f"Scheduled notifications for {fcm_token}\n")
     else:
@@ -364,7 +374,7 @@ def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_da
     day_in_cycle = days_since_start % cycle_length
     
     if has_request_context():
-        return jsonify({"isPillDay": day_in_cycle <= pill_days})
+        return jsonify({"isPillDay": day_in_cycle < pill_days})
     else:
         return day_in_cycle < pill_days
 
@@ -412,12 +422,13 @@ def reset_day_individual():
         if user:
             is_pill_day = is_pill_day(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
             if is_pill_day:
-                # add database call here which changes the next_notification table
-
                 # Check if intake time is given in ther request which means that the temporary intake time got changed and is being passed in the request.
                 # If it is not given, the endpoint is likely called following initial registration in which case we'll just get the intake time from DB
                 if intake_time:
-                    schedule_notifications(intake_time=intake_time, fcm_token=fcm_token)    
+                    schedule_notifications_reponse = schedule_notifications(intake_time=intake_time, fcm_token=fcm_token)
+                    # We want to return an error if schedule_notifications returns that the passed time is in the past
+                    if schedule_notifications_reponse == "passed_time_in_past":
+                        return jsonify({"error:" "passed intake time is in the past"})    
                 else:
                     schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token)
                 return jsonify({"message": "Succesfully scheduled notifications"})
@@ -478,8 +489,24 @@ def return_next_notification():
     if fcm_token:
         user = User.query.filter_by(fcm_token=fcm_token).first()
         if user:
-            next_notification = user.next_notification
-            return jsonify({"next_notification": next_notification})
+            # find all scheduled notifications for the user
+            user_jobs = [job for job in scheduler.get_jobs() if job.id.startswith(fcm_token)]
+            if user_jobs:
+                # Get the next run times for the jobs that are scheduled in the future
+                now_utc = datetime.datetime.now(pytz.utc)
+                next_run_times = [job.next_run_time for job in user_jobs if job.next_run_time > now_utc]
+                if next_run_times:
+                    # Get the earliest next run time
+                        next_notification_time_utc = min(next_run_times)
+                        # Convert to user's time zone
+                        user_timezone = pytz.timezone(user.timezone)
+                        next_notification_time_local = next_notification_time_utc.astimezone(user_timezone)
+                        # Return in users local time zone
+                        return jsonify({"next_notification": next_notification_time_local.isoformat()})
+                else:
+                    return jsonify({"next_notification": None, "message": "No future notifications scheduled"})
+            else:
+                return jsonify({"next_notification": None, "message": "No notifications scheduled for this user"})
         else:
             return jsonify({"error": "Could not find user in Database"}), 404
     else:
