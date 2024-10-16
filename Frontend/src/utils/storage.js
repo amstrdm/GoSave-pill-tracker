@@ -14,11 +14,13 @@ export const getFcmToken = () => {
 export const saveIntakeSettings = async (settings) => {
     try {
         const fcmToken = getFcmToken()
+        const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
         console.log("Intake settings: " + settings)
 
         const response = await api.post("/database", {
             "fcmToken": fcmToken,
-            "intakeTime": settings
+            "intakeTime": settings,
+            "timezone": userTimeZone
         })
         
         console.log("Intake Response from backend:", response.data);
