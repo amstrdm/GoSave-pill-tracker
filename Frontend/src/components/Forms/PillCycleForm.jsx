@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
-import { saveCycleSettings, getCycleSettings, getIntakeSettings, saveIntakeSettings } from "../../utils/storage"
+import { saveCycleSettings, getCycleSettings, getIntakeSettings, saveIntakeSettings, getFcmToken } from "../../utils/storage"
 import { useNavigate } from "react-router-dom";
 
 import ChangeTheme from "../ChangeTheme"
+import api from "../../axiosInstance";
 // We want to check if the form is being used from the settings panel in which case we will tweak some things
 function PillCycleForm({ isSettings, onSave }) { 
 
@@ -52,6 +53,15 @@ function PillCycleForm({ isSettings, onSave }) {
             await saveIntakeSettings(intakeTime)
         }
         
+        if (!isSettings){
+            // if this is the initial pillCycleForm we want to schedule notifications on submit 
+            // Otherwise the user wouldn't get any notifications until the next day even if his intake time is after he signed up
+            // notifications for the user wouldn't be scheduled until midnight when all users notifications get scheduled
+            const fcmToken = getFcmToken()
+            await api.post("/schedule-notifications", {
+                "fcmToken": fcmToken
+            })
+        }
 
         setIsSubmitted(true)
 
