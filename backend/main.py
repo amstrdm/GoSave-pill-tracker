@@ -274,7 +274,7 @@ def send_notification(fcm_token, title, body):
 def cancel_existing_notifications(fcm_token):
     for job in scheduler.get_jobs():
         if job.id.startswith(fcm_token):
-            job.remove()
+            scheduler.remove_job(job.id)
     
         
             
@@ -311,7 +311,7 @@ def schedule_notifications(intake_time, fcm_token, interval):
 
         
         # Calculate start and end of notification window in UTC
-        start_time_utc = (intake_datetime_local - timedelta(hours=2)).astimezone(pytz.utc)
+        start_time_utc = (intake_datetime_local - timedelta(hours=2)).astimezone(pytz.utc) 
         end_time_utc = (intake_datetime_local + timedelta(hours=2)).astimezone(pytz.utc)
         
         # The passed interval parameter decides if the function is gonna schedule notifications ahead of the intake time to prepare the user
@@ -320,8 +320,9 @@ def schedule_notifications(intake_time, fcm_token, interval):
         # Schedule notifications 2 hours before intake every 30 minutes 
         # Increasing current_time by 30 minutes each loop until it is greater than intake_time in which case it will break the loop
         if interval == True:
+            print("\n\nintake Time:\n\n", intake_time)
             current_time_utc = start_time_utc
-            while current_time_utc <= intake_datetime_utc:
+            while current_time_utc < intake_datetime_utc:
                 scheduler.add_job(
                     func=send_notification,
                     trigger="date",
@@ -336,7 +337,7 @@ def schedule_notifications(intake_time, fcm_token, interval):
                 current_time_utc += timedelta(minutes=30)
         
         # After intake time, schedule notifications every 15 minutes until 2 hours after
-        current_time_utc = intake_datetime_utc + timedelta(minutes=15) # Start after intake time
+        current_time_utc = intake_datetime_utc
         while current_time_utc <= end_time_utc:
             scheduler.add_job(
                 func=send_notification,
@@ -352,6 +353,8 @@ def schedule_notifications(intake_time, fcm_token, interval):
             current_time_utc += timedelta(minutes=15)
 
         print(f"Scheduled notifications for {fcm_token}\n")
+        for job in scheduler.get_jobs():
+            print(f"{job}: {job.next_run_time}")
     else:
         return f"User by fcm token {fcm_token} not found"
 
@@ -377,9 +380,9 @@ def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_da
                 start_date_str = user.start_date
 
             else:
-                return jsonify({"error:" "user not found in database"})
+                return jsonify({"error:" "user not found in database"}), 404
         else:
-            return jsonify({"error": "fcmToken is required"})
+            return jsonify({"error": "fcmToken is required"}), 400
 
 
 
@@ -432,7 +435,6 @@ def reset_day_individual():
     fcm_token = data.get("fcmToken")
     intake_time = data.get("intakeTime")
     interval = data.get("interval")
-    print("INTERVAL: ", interval)
     if fcm_token:
         user = User.query.filter_by(fcm_token=fcm_token).first()
         if user:
@@ -449,7 +451,7 @@ def reset_day_individual():
                         schedule_notifications_reponse = schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=interval)
                         # We want to return an error if schedule_notifications returns that the passed time is in the past
                         if schedule_notifications_reponse == "passed_time_in_past":
-                            return jsonify({"error:" "passed intake time is in the past"})    
+                            return jsonify({"error": "passed intake time is in the past"}), 400
                     else:
                         schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token, interval=interval)
                     return jsonify({"message": "Succesfully scheduled notifications"})
@@ -471,7 +473,7 @@ def pill_taken():
             return jsonify({"error": "fcmToken is required"}), 400
         
         if user:
-            if is_pill_taken:
+            if "isPillTaken" in data:
                 # update database
                 user.is_pill_taken = is_pill_taken
                 intake_time = user.intake_time
@@ -486,6 +488,7 @@ def pill_taken():
             # Cancel all existing notifications for the user with the given fcm_token if is_pill_taken was set to true since that means the user took their pill
             cancel_existing_notifications(fcm_token)
             message = "Notifications canceled for pill intake, database updated!"
+            print(scheduler.get_jobs())
         elif user.is_pill_taken == False:
             # Schedule new notifications for the user with the given fcm_token if is_pill_taken was set to false since that means the user did not take their pill
             schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
@@ -528,7 +531,8 @@ def return_next_notification():
                         user_timezone = pytz.timezone(user.timezone)
                         next_notification_time_local = next_notification_time_utc.astimezone(user_timezone)
                         # Return in users local time zone
-                        return jsonify({"next_notification": next_notification_time_local.isoformat()})
+                        next_notification_time_str = next_notification_time_local.strftime('%H:%M')
+                        return jsonify({"next_notification": next_notification_time_str})
                 else:
                     return jsonify({"next_notification": None, "message": "No future notifications scheduled"})
             else:
