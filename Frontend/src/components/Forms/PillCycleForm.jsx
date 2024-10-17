@@ -59,7 +59,8 @@ function PillCycleForm({ isSettings, onSave }) {
             // notifications for the user wouldn't be scheduled until midnight when all users notifications get scheduled
             const fcmToken = getFcmToken()
             await api.post("/schedule-notifications", {
-                "fcmToken": fcmToken
+                "fcmToken": fcmToken,
+                "interval": true
             })
         }
 
