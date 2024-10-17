@@ -21,7 +21,7 @@ function SettingsPanel({ isOpen=true, onSave }) {
         This if fucked. Like this is an absoluetely horrible approach. Quite frankly I do not know why I chose to do it this way I cannot exlain it in hindsight*/}
         <dialog id="settings_modal" className="modal">
             <div className="modal-box overflow-hidden">
-                <div className="modal-box justify-center">
+                <div className="modal-action justify-center">
                     <form method="dialog" className="flex items-center justify-center">
                         <PillCycleForm isSettings={true} onSave={onSave}/>
                         {/* A logical approach would've been to just add the prompt for the Intake time here directly.
