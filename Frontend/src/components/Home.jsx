@@ -18,6 +18,7 @@ function Home() {
     const [isPillDay, setIsPillDay] = useState(true)
     const [settingsUpdated, setSettingsUpdated] = useState(false)
     const [pillTaken, setPillTaken] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
 
     useEffect(() => {
         const fetchSettings  = async () => {
@@ -73,6 +74,7 @@ function Home() {
             const fcmToken = getFcmToken()
 
             try {
+                setIsLoading(true)
                 const response = await api.get("/pill-taken", {
                     params: {"fcmToken": fcmToken}
                 })
@@ -88,6 +90,7 @@ function Home() {
                 console.error("Error checking pill day:", err)
                 return false
             }
+            setIsLoading(false)
         }
 
         checkPillTaken()
@@ -122,11 +125,12 @@ function Home() {
         const newPillTaken = !pillTaken
 
         try{
+            setIsLoading(true)
         await api.post("/pill-taken", {
             "fcmToken": fcmToken,
             "isPillTaken": newPillTaken
         })
-        
+
         setPillTaken(newPillTaken)
 
         }catch(err){
@@ -141,6 +145,7 @@ function Home() {
                 console.error('Error in setting up request:', err.message);
             }
         }
+        setIsLoading(false)
     }
 
     return(
@@ -150,7 +155,8 @@ function Home() {
             <ChangeTheme />
             {isPillDay ? (<div className="flex flex-col items-center justify-center">
                 <button className="btn btn-circle h-60 w-60" onClick={handlePillTaken}>
-                    {pillTaken ? (
+                    {isLoading ? (<span className="loading loading-spinner w-32 h-32"></span>) :
+                    pillTaken ? (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-48">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                         </svg>) : 
