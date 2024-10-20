@@ -126,12 +126,12 @@ function Home() {
 
         try{
             setIsLoading(true)
-        await api.post("/pill-taken", {
-            "fcmToken": fcmToken,
-            "isPillTaken": newPillTaken
-        })
+            await api.post("/pill-taken", {
+                "fcmToken": fcmToken,
+                "isPillTaken": newPillTaken
+            })
 
-        setPillTaken(newPillTaken)
+            setPillTaken(newPillTaken)
 
         }catch(err){
             if (err.response) {
