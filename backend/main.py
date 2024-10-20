@@ -59,6 +59,7 @@ class User(db.Model):
     start_date = db.Column(db.String(10)) # The start date of the cycle. Stored as YYYY-MM-DD
     is_pill_taken = db.Column(db.Boolean, default=False) # A boolean tracking if the user has clicked is_pill_taken
     timezone = db.Column(db.String(50)) # The Users timezone
+    waiting_for_home = db.Column(db.Boolean, default=False) # A boolean tracking if the user clicked to be reminded when Home
 
 
 def create_database(app):
@@ -255,21 +256,23 @@ def format_time(intake_time, current_time):
 
 def send_notification(fcm_token, title, body):
 
-
-    # Create Message
-    message = messaging.Message(
-        notification=messaging.Notification(
-            title=title,
-            body=body,
-        ),
-        token=fcm_token
-    )
-    
-    try:
-        response = messaging.send(message)
-        return f"message sent: {response}"
-    except Exception as e:
-        return f"Error sending Message: {e}"
+    with app.app_context():
+        # Create Message
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            token=fcm_token
+        )
+        
+        try:
+            response = messaging.send(message)
+            print(f"Message sent: {response}")
+            return f"message sent: {response}"
+        except Exception as e:
+            print(f"Error sending Message: {e}")
+            return f"Error sending Message: {e}"
 
 def cancel_existing_notifications(fcm_token):
     for job in scheduler.get_jobs():
@@ -279,7 +282,7 @@ def cancel_existing_notifications(fcm_token):
         
             
 
-def schedule_notifications(intake_time, fcm_token, interval):
+def schedule_notifications(intake_time, fcm_token, interval, now=False):
     # Will check if there are scheduled notifications for the day. If there are clear them.
     # Afterwards it will schedule notifications based on the passed intake time:
         # 2 hours before intake time
@@ -306,7 +309,7 @@ def schedule_notifications(intake_time, fcm_token, interval):
 
         # Return passed_time_in_past if intake time has already passed since that means it can't be scheduled
         now_utc = datetime.datetime.now(pytz.utc)
-        if intake_datetime_utc < now_utc:
+        if intake_datetime_utc < now_utc and now == False:
             return "passed_time_in_past"
 
         
@@ -398,34 +401,34 @@ def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_da
 
 
 
-# The reset_day_all function will run every day at 12:00 PM
-@scheduler.task("cron", id="reset_day_all", hour=12, minute=0)
+# The reset_day_all function will run every day at 24:00 
+@scheduler.task("cron", id="reset_day_all", hour=0, minute=0)
 def reset_day_all():
+    with app.app_context():
+        # Variable to count how many people had their pill day at execution
+        pill_day_count = 0
 
-    # Variable to count how many people had their pill day at execution
-    pill_day_count = 0
+        # Query all Users
+        users = User.query.all()
 
-    # Query all Users
-    users = User.query.all()
+        # Loop through each user: Check if it's a pill day. If it is schedule notifications
+        for user in users: 
+            fcm_token = user.fcm_token
+            intake_time = user.intake_time
+            pill_days = user.pill_days
+            break_days = user.break_days
+            start_date = user.start_date
+            
+            user.is_pill_taken = False # Set is_pill_taken to false for all users at 12pm since a new day starts
 
-    # Loop through each user: Check if it's a pill day. If it is schedule notifications
-    for user in users: 
-        fcm_token = user.fcm_token
-        intake_time = user.intake_time
-        pill_days = user.pill_days
-        break_days = user.break_days
-        start_date = user.start_date
-        
-        user.is_pill_taken = False # Set is_pill_taken to false for all users at 12pm since a new day starts
+            pill_day = is_pill_day(pill_days=pill_days, break_days=break_days, start_date_str=start_date)
 
-        pill_day = is_pill_day(pill_days, break_days, start_date_str=start_date)
+            if pill_day:
+                schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
+                pill_day_count += 1
 
-        if pill_day:
-            schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
-            pill_day_count += 1
-
-    db.session.commit()
-    print(f"Finished scheduling user notifications. {User.query.count()} total users of which {pill_day_count} had their pill day")
+        db.session.commit()
+        print(f"Finished scheduling user notifications. {User.query.count()} total users of which {pill_day_count} had their pill day")
 
 # Function to set up notifications when a user first registers or changes intake time for the day
 # Essentially does the same thing as reset_day_all but only to a given user instead of looping through the whole DB
@@ -474,6 +477,10 @@ def pill_taken():
         
         if user:
             if "isPillTaken" in data:
+                try:
+                    is_pill_taken = str_to_bool(is_pill_taken)
+                except ValueError as e:
+                    return jsonify({"error": str(e)}), 400
                 # update database
                 user.is_pill_taken = is_pill_taken
                 intake_time = user.intake_time
@@ -541,6 +548,89 @@ def return_next_notification():
             return jsonify({"error": "Could not find user in Database"}), 404
     else:
         return jsonify({"error": "fcmToken query parameter is required"}), 400
+
+@app.route("/remind-when-home", methods=["POST", "GET"])
+def check_arrived_home():
+    if request.method == "POST":
+        data = request.get_json()
+        fcm_token = data.get("fcmToken")
+        waiting_for_home = data.get("waitingForHome")
+        is_home = data.get("isHome")
+
+        if not fcm_token:
+            return jsonify({"error": "fcmToken parameter is required"}), 400
+
+        user = User.query.filter_by(fcm_token=fcm_token).first()
+        if not user:
+            return jsonify({"error": "Could not find user in Database"}), 404
+
+        if "waitingForHome" not in data:
+            return jsonify({"error": "waitingForHome parameter required"}), 400
+
+        try:
+            waiting_for_home = str_to_bool(waiting_for_home)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+
+        if waiting_for_home:
+            # User wants to be reminded when they get home
+            cancel_existing_notifications(fcm_token)
+            user.waiting_for_home = True
+            db.session.commit()
+            return jsonify({"message": "Successfully set to remind when home"}), 200
+        else:
+            # User either misclicked and wants to be reminded normally (isHome=false) or he arrived Home (isHome=true)
+            if "isHome" not in data:
+                return jsonify({"error": "isHome parameter required when waitingForHome is False"}), 400
+
+            try:
+                is_home = str_to_bool(is_home)
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+
+            if is_home:
+                # We'll check if the DB Column of waiting_for_home is false. If it is then the user never told the server to
+                # be reminded when he's home so we'll just block the request.
+                if user.waiting_for_home == False:
+                    return jsonify({"error": "User has not selected to be reminded when Home"})
+                
+                # if user arrived home we'll schedule to start sending notifications starting from now
+                # Get current time in user's timezone add one minute as a buffer to make sure the scheduled time isn't in the past
+                user_timezone = pytz.timezone(user.timezone)
+                now_in_user_timezone = datetime.datetime.now(user_timezone) + timedelta(minutes=1)
+                current_time_str = now_in_user_timezone.strftime('%H:%M')
+
+                # Cancel existing Notifications and schedule notification to be sent immediately
+                cancel_existing_notifications(fcm_token)
+                schedule_notifications(intake_time=current_time_str, fcm_token=fcm_token, interval=False, now=True)
+                for job in scheduler.get_jobs():
+                    print(f"{job}: {job.next_run_time}")
+                user.waiting_for_home = False
+                db.session.commit()
+
+                return jsonify({"message": "Notifications scheduled as user arrived home"}), 200
+            else:
+                # We'll just reset all notifications to default intake time as if the user never clicked the "waiting for Home" Button
+                cancel_existing_notifications(fcm_token)
+                schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token, interval=True)
+
+                user.waiting_for_home = False
+                db.session.commit()
+
+                return jsonify({"message": "Succesfully reset notifications"}), 200
+    elif request.method == "GET":
+        fcm_token = request.args.get("fcmToken")
+        if not fcm_token:
+            return jsonify({"error": "fcmToken query parameter required"}), 400
+
+        user = User.query.filter_by(fcm_token=fcm_token).first()
+        if user:
+            return jsonify({"waitingForHome": user.waiting_for_home}), 200
+        else:
+            return jsonify({"error": "Could not find user in Database"}), 404
+
+
+
 
 if __name__ == "__main__":
     create_database(app)
