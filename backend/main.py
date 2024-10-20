@@ -383,7 +383,7 @@ def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_da
                 start_date_str = user.start_date
 
             else:
-                return jsonify({"error:" "user not found in database"}), 404
+                return jsonify({"error": "user not found in database"}), 404
         else:
             return jsonify({"error": "fcmToken is required"}), 400
 
@@ -618,6 +618,7 @@ def check_arrived_home():
                 db.session.commit()
 
                 return jsonify({"message": "Succesfully reset notifications"}), 200
+            
     elif request.method == "GET":
         fcm_token = request.args.get("fcmToken")
         if not fcm_token:
