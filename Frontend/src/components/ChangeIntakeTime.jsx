@@ -45,7 +45,7 @@ function ChangeIntakeTime() {
 
     return (
         <div>
-            <button className="btn mt-12 ml-5 mr-5" onClick={()=>document.getElementById('intake_time_modal').showModal()}>
+            <button className="btn mt-12 ml-5 mr-5 flex items-center justify-center space-x-2 p-2 min-w-[200px]" onClick={()=>document.getElementById('intake_time_modal').showModal()}>
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                 </svg>Change Intake Time
