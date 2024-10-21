@@ -2,8 +2,11 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
+// This is the base URL through which all requests will run. This should be your servers URL
+export const baseURL = 'http://localhost:5000'
+
 const api = axios.create({
-  baseURL: 'http://localhost:5000', 
+  baseURL: baseURL, 
   headers: {
     'Content-Type': 'application/json',
   },
