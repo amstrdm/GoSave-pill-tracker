@@ -9,6 +9,7 @@ import { getFcmToken } from "../utils/storage"
 import ChangeIntakeTime from "./ChangeIntakeTime"
 import RemindHome from "./RemindHome"
 import NextNotification from "./NextNotification"
+import InfoRemindHome from "./InfoRemindHome"
 
 function Home() {
 
@@ -166,9 +167,13 @@ function Home() {
                 so it can track when the user presses the pillTaken Button*/}
                 <NextNotification pillTaken={pillTaken}/> 
 
-                <div className="flex flex-row items-center justify-center">
+                <div className="flex flex-row items-start justify-center">
                     <ChangeIntakeTime/>
-                    <RemindHome/>
+
+                    <div className="flex flex-col items-center">
+                        <RemindHome/>
+                        <InfoRemindHome/>
+                    </div>
                 </div>
             </div>) : 
                 (<div className="flex flex-col items-center justify-center">
