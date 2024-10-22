@@ -11,7 +11,8 @@ from flask_apscheduler import APScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 import pytz
-
+import enum
+from sqlalchemy import Enum
 
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate("config/account_key.json")
@@ -51,6 +52,8 @@ scheduler = APScheduler()
 scheduler.init_app(app)
 
 class User(db.Model):
+    __tablename__ = "user"
+
     id = db.Column(db.Integer, primary_key=True) # primary user id
     fcm_token = db.Column(db.String(255), unique=True) # Firebase Cloud Messaging Token. Used to send notifications and as a unqiue identifier for each user
     intake_time = db.Column(db.String(5)) # The permanent Intake Time inputted by the user. Stored as HH:MM
@@ -60,7 +63,45 @@ class User(db.Model):
     is_pill_taken = db.Column(db.Boolean, default=False) # A boolean tracking if the user has clicked is_pill_taken
     timezone = db.Column(db.String(50)) # The Users timezone
     waiting_for_home = db.Column(db.Boolean, default=False) # A boolean tracking if the user clicked to be reminded when Home
+    
+    # Relationship
+    pill_logs = db.relationship("PillLog", backref="user", lazy=True, cascade="all, delete-orphan")
 
+    def get_day_of_week(self):
+        return datetime.datetime.now(pytz.timezone(self.timezone)).strftime('%A')
+    
+    def __repr__(self):
+        return f"<User {self.id} - {self.fcm_token}>"
+
+
+# Define an enumeration for days of the week for data integrity
+class WeekDay(enum.Enum):
+    Monday = "Monday"
+    Tuesday = "Tuesday"
+    Wednesday = "Wednesday"
+    Thursday = "Thursday"
+    Friday = "Friday"
+    Saturday = "Saturday"
+    Sunday = "Sunday"
+
+class PillLog(db.Model):
+    __tablename__ = "pill_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    day_of_week = db.Column(Enum(WeekDay), nullable=False)
+    calendar_date = db.Column(db.Date, nullable=False)
+    is_pill_day = db.Column(db.Boolean, nullable=False)
+    pill_taken_time = db.Column(db.Time, nullable=True)
+    pill_taken = db.Column(db.Boolean, default=False, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'calendar_date', name='_user_date_uc'),
+    )
+
+    def __repr__(self):
+        return (f"<PillLog {self.id} - User {self.user_id} - {self.calendar_date} - "
+                f"Pill Day: {self.is_pill_day} - Taken: {self.pill_taken}>")
 
 def create_database(app):
     with app.app_context():
@@ -76,6 +117,15 @@ def str_to_bool(value):
         elif value.lower() in ('false', '0'):
             return False
     raise ValueError("Invalid value for interval")
+
+def is_pill_day_calc(pill_days, break_days, start_date_str, current_date=None):
+    if current_date is None:
+        current_date = datetime.date.today()
+    start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    days_since_start = (current_date - start_date).days
+    cycle_length = pill_days + break_days
+    day_in_cycle = days_since_start % cycle_length
+    return day_in_cycle < pill_days
 
 @app.route("/", methods=["GET"])
 def server_up():
@@ -206,29 +256,6 @@ def save_token():
         db.session.commit()
         return jsonify({"message": "Token saved successfully"}), 201
 
-"""
-@app.route("/send-notification", methods=["POST"])
-def send_notification():
-
-    data = request.get_json()
-    fcm_token = data.get("fcmToken")
-
-    # Create Message
-    message = messaging.Message(
-        notification=messaging.Notification(
-            title='Hello!',
-            body='You have a new message.',
-        ),
-        token=fcm_token
-    )
-    
-    try:
-        response = messaging.send(message)
-        return f"message sent: {response}"
-    except Exception as e:
-        return f"Error sending Message: {e}"
-
-"""
 
 
 def format_time(intake_time, current_time):
@@ -366,40 +393,25 @@ def schedule_notifications(intake_time, fcm_token, interval, now=False):
 # Since the cycle always starts with the pill days we now just have to check if day in cycle is smaller than or equal to
 # our pill days. If it is that means we aren't past the pill days yet and we can return true.
 @app.route("/is-pill-day", methods=["POST"])
-def is_pill_day(pill_days=None, break_days=None, start_date_str=None, current_date=None):
-    if current_date is None:
-        current_date = datetime.date.today()
-    # Check if function is being called from endpoint if it is retrieve values to calculate pill day from database
-    if has_request_context():
-        data = request.get_json()
-        fcm_token = data.get("fcmToken")
-        
-        if fcm_token:
-            user = User.query.filter_by(fcm_token=fcm_token).first()
-
-            if user:
-                pill_days = user.pill_days
-                break_days = user.break_days
-                start_date_str = user.start_date
-
-            else:
-                return jsonify({"error": "user not found in database"}), 404
-        else:
-            return jsonify({"error": "fcmToken is required"}), 400
-
-
-
-    start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d").date()
-    days_since_start = (current_date-start_date).days
-    cycle_length = pill_days + break_days
-    day_in_cycle = days_since_start % cycle_length
+def is_pill_day():
+    data = request.get_json()
+    fcm_token = data.get("fcmToken")
     
-    if has_request_context():
-        return jsonify({"isPillDay": day_in_cycle < pill_days})
-    else:
-        return day_in_cycle < pill_days
+    if not fcm_token:
+        return jsonify({"error": "fcmToken is required"}), 400
 
+    user = User.query.filter_by(fcm_token=fcm_token).first()
+    if not user:
+        return jsonify({"error": "User not found in database"}), 404
 
+    pill_day = is_pill_day_calc(
+        pill_days=user.pill_days,
+        break_days=user.break_days,
+        start_date_str=user.start_date
+    )
+
+    return jsonify({"isPillDay": pill_day}), 200
+    
 
 # The reset_day_all function will run every day at 24:00 
 @scheduler.task("cron", id="reset_day_all", hour=0, minute=0)
@@ -418,15 +430,30 @@ def reset_day_all():
             pill_days = user.pill_days
             break_days = user.break_days
             start_date = user.start_date
-            
-            user.is_pill_taken = False # Set is_pill_taken to false for all users at 12pm since a new day starts
 
-            pill_day = is_pill_day(pill_days=pill_days, break_days=break_days, start_date_str=start_date)
+            user.is_pill_taken = False # Set is_pill_taken to false for all users at 12pm since a new day starts
+            db.session.commit()
+
+            pill_day = is_pill_day_calc(pill_days=pill_days, break_days=break_days, start_date_str=start_date)
 
             if pill_day:
                 schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
                 pill_day_count += 1
 
+            # Add Log Entry
+            user_timezone = pytz.timezone(user.timezone)
+            current_time = datetime.datetime.now(user_timezone)
+            pill_log = PillLog(
+                user_id=user.id,
+                day_of_week=WeekDay(current_time.strftime("%A")),
+                calendar_date=current_time.date(),
+                is_pill_day=pill_day,
+                pill_taken_time=None,
+                pill_taken=False
+            )
+            db.session.add(pill_log)
+            print(f"PillLog created for user {fcm_token} on {pill_log.calendar_date} - Pill Day: {pill_log.is_pill_day}")
+                
         db.session.commit()
         print(f"Finished scheduling user notifications. {User.query.count()} total users of which {pill_day_count} had their pill day")
 
@@ -441,7 +468,7 @@ def reset_day_individual():
     if fcm_token:
         user = User.query.filter_by(fcm_token=fcm_token).first()
         if user:
-            pill_day = is_pill_day(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
+            pill_day = is_pill_day_calc(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
             if pill_day:
                 if "interval" in data:
                     try:
@@ -471,52 +498,88 @@ def pill_taken():
         data = request.get_json()
         fcm_token = data.get("fcmToken")
         is_pill_taken = data.get("isPillTaken")
-        user = User.query.filter_by(fcm_token=fcm_token).first()
+
+        # Check if fcmToken is provided
         if not fcm_token:
             return jsonify({"error": "fcmToken is required"}), 400
         
-        if user:
-            if "isPillTaken" in data:
-                try:
-                    is_pill_taken = str_to_bool(is_pill_taken)
-                except ValueError as e:
-                    return jsonify({"error": str(e)}), 400
-                # update database
-                user.is_pill_taken = is_pill_taken
-                intake_time = user.intake_time
-                db.session.commit()
-            else:
-                return jsonify({"error": "is_pill_taken required"}), 400
-        else:
+        # Fetch user from database
+        user = User.query.filter_by(fcm_token=fcm_token).first()
+        if not user:
             return jsonify({"error": f"Could not find user {fcm_token}"}), 404
 
-        # Check if the database value was just set to true or to false
-        if user.is_pill_taken == True:
-            # Cancel all existing notifications for the user with the given fcm_token if is_pill_taken was set to true since that means the user took their pill
+        # Check if isPillTaken is provided
+        if "isPillTaken" not in data:
+            return jsonify({"error": "is_pill_taken required"}), 400
+        
+        # Convert is_pill_taken to boolean
+        try:
+            is_pill_taken = str_to_bool(is_pill_taken)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        
+        # Check if today is a pill day
+        pill_day = is_pill_day_calc(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date)
+
+        # If today is not a pill day, return an error
+        if not pill_day:
+            return jsonify({"error": "Today is a break day. No pill to take."}), 400
+
+        # Get current date and time
+        user_timezone = pytz.timezone(user.timezone)
+        current_time = datetime.datetime.now(user_timezone)
+        current_date = current_time.date()
+        
+        # Find or create the PillLog entry for today
+        pill_log = PillLog.query.filter_by(user_id=user.id, calendar_date=current_date).first()
+        if not pill_log:
+            # Create a new PillLog if it doesn't exist
+            pill_log = PillLog(
+                user_id=user.id,
+                day_of_week=WeekDay(current_time.strftime("%A")),
+                calendar_date=current_date,
+                is_pill_day=True,
+                pill_taken_time=current_time.time() if is_pill_taken else None,
+                pill_taken=is_pill_taken
+            )
+            db.session.add(pill_log)
+        else:
+            # Update existing PillLog
+            pill_log.pill_taken = is_pill_taken
+            pill_log.pill_taken_time = current_time.time() if is_pill_taken else None
+        
+        # Update user's pill taken status
+        user.is_pill_taken = is_pill_taken
+
+        # Handle notifications
+        if is_pill_taken:
+            # Cancel Notifications since Pill has been taken
             cancel_existing_notifications(fcm_token)
             message = "Notifications canceled for pill intake, database updated!"
             print(scheduler.get_jobs())
-        elif user.is_pill_taken == False:
-            # Schedule new notifications for the user with the given fcm_token if is_pill_taken was set to false since that means the user did not take their pill
-            schedule_notifications(intake_time=intake_time, fcm_token=fcm_token, interval=True)
+        else:
+            # Reschedule notifications since pill has not been taken
+            schedule_notifications(intake_time=user.intake_time, fcm_token=fcm_token, interval=True)
             message = "Notifications scheduled for pill intake, database updated!"
+            
+        db.session.commit()
 
-        print(f"Updated is_pill_taken to {user.is_pill_taken}")
+        print(f"Updated is_pill_taken to {user.is_pill_taken} for user {fcm_token}")
         return jsonify({"message": message}), 200
     
     elif request.method == "GET":
         fcm_token = request.args.get("fcmToken")
 
-        if fcm_token:
-            user = User.query.filter_by(fcm_token=fcm_token).first()
-
-            if user:
-                is_pill_taken = user.is_pill_taken
-                return jsonify({"pillTaken": is_pill_taken})
-            else:
-                return jsonify({"error": "Could not find user in Database"}), 404
-        else:
+        if not fcm_token:
             return jsonify({"error": "fcmToken query parameter is required"}), 400
+        
+        user = User.query.filter_by(fcm_token=fcm_token).first()
+
+        if user:
+            return jsonify({"pillTaken": user.is_pill_taken})
+        else:
+            return jsonify({"error": "Could not find user in Database"}), 404
+            
 
 @app.route("/next-notification", methods=["GET"])
 def return_next_notification():
@@ -630,7 +693,103 @@ def check_arrived_home():
         else:
             return jsonify({"error": "Could not find user in Database"}), 404
 
+@app.route("/test-logs", methods=["POST"])
+def test_logs():
+    data = request.get_json()
+    fcm_token = data.get("fcmToken")
+    is_pill_taken = data.get("pillTaken")
+    calendar_date_str = data.get("date")
 
+    user = User.query.filter_by(fcm_token=fcm_token).first()
+
+    if not user:
+        return jsonify({"error": "User not found in Database"}), 404
+
+    # Parse the date string into a datetime.date object
+    if calendar_date_str:
+        try:
+            calendar_date = datetime.datetime.strptime(calendar_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Expected YYYY-MM-DD."}), 400
+    else:
+        calendar_date = datetime.date.today()
+
+    # Find the PillLog entry for today
+    pill_log = PillLog.query.filter_by(user_id=user.id, calendar_date=calendar_date).first()
+    pill_day = is_pill_day_calc(pill_days=user.pill_days, break_days=user.break_days, start_date_str=user.start_date, current_date=calendar_date)
+    if not pill_log:
+        # Create a new PillLog if it doesn't exist
+        user_timezone = pytz.timezone(user.timezone)
+        current_time = datetime.datetime.now(user_timezone).time()
+        pill_log = PillLog(
+            user_id=user.id,
+            day_of_week=WeekDay(calendar_date.strftime("%A")),
+            calendar_date=calendar_date,
+            is_pill_day=pill_day,
+            pill_taken_time=current_time if is_pill_taken else None,
+            pill_taken=is_pill_taken
+        )
+        db.session.add(pill_log)
+        db.session.commit()
+        return jsonify({"message": "Created new PillLog entry"})
+    else:
+        # Update existing PillLog
+        pill_log.is_pill_day = pill_day
+        pill_log.pill_taken = is_pill_taken
+        if is_pill_taken:
+            user_timezone = pytz.timezone(user.timezone)
+            current_time = datetime.datetime.now(user_timezone).time()
+            pill_log.pill_taken_time = current_time
+        else:
+            pill_log.pill_taken_time = None
+        db.session.commit()
+        return jsonify({"message": "Edited existing PillLog entry"})
+    
+    
+
+@app.route("/get-logs", methods=["GET"])
+def get_logs():
+    fcm_token = request.args.get("fcmToken")
+    
+    if not fcm_token:
+        return jsonify({"error": "fcmToken query parameter is required"}), 400
+    
+    user = User.query.filter_by(fcm_token=fcm_token).first()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    # Calculate the total cycle length
+    cycle_length = user.pill_days + user.break_days
+    if cycle_length == 0:
+        return jsonify({"error": "Invalid cycle length"}), 400
+    
+    # Calculate the number of days to retrieve logs for (last two cycles)
+    days_to_retrieve = cycle_length * 2
+    
+    # Calculate the date two cycles ago
+    end_date = datetime.date.today()
+    start_date_two_cycles_ago = end_date - timedelta(days=days_to_retrieve)
+    
+    # Query the PillLog entries within the date range
+    logs = PillLog.query.filter(
+        PillLog.user_id == user.id,
+        PillLog.calendar_date >= start_date_two_cycles_ago,
+        PillLog.calendar_date <= end_date   
+    ).order_by(PillLog.calendar_date.desc()).all()
+    
+    # Serialize the logs
+    serialized_logs = [
+        {
+            "day_of_week": log.day_of_week.value,
+            "calendar_date": log.calendar_date.strftime("%Y-%m-%d"),
+            "is_pill_day": log.is_pill_day,
+            "pill_taken_time": log.pill_taken_time.strftime("%H:%M:%S") if log.pill_taken_time else None,
+            "pillTaken":log.pill_taken
+        }
+        for log in logs
+    ]
+    
+    return jsonify({"pillLogs": serialized_logs}), 200
 
 
 if __name__ == "__main__":
