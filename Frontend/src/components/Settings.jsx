@@ -1,9 +1,11 @@
+import { useNavigate } from "react-router-dom"
 import ChangeTheme from "./ChangeTheme"
 import PillCycleForm from "./Forms/PillCycleForm"
 
 function SettingsPanel({ isOpen=true, onSave }) {
     if (!isOpen) return null
 
+    const navigate = useNavigate()
     
 
     return(
@@ -22,15 +24,16 @@ function SettingsPanel({ isOpen=true, onSave }) {
         <dialog id="settings_modal" className="modal">
             <div className="modal-box overflow-hidden">
                 <div className="modal-action justify-center">
+                    <ChangeTheme />
                     <form method="dialog" className="flex items-center justify-center">
                         <PillCycleForm isSettings={true} onSave={onSave}/>
                         {/* A logical approach would've been to just add the prompt for the Intake time here directly.
                         Instead I put it in a conditional inside of the PillCycleForm.jsx Component.
                         I do not know what I was smoking*/}
                         <button className="absolute top-0 right-0 m-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-6">
-                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                        </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
                         </button>
                     </form>
                 </div>
