@@ -6,6 +6,7 @@ import Home from './components/Home';
 import IntakeForm from './components/Forms/IntakeForm';
 import PillCycleForm from './components/Forms/PillCycleForm';
 import api from './axiosInstance';
+import Logs from './components/Forms/Logs';
 
 function AppContent() {
   const [error, setError] = useState(null);
@@ -62,6 +63,7 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/intake" element={<IntakeForm />} />
         <Route path="/cycle" element={<PillCycleForm isSettings={false} />} />
+        <Route path="/logs" element={<Logs/>}/>
       </Routes>
     </>
   );
