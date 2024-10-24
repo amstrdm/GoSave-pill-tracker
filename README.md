@@ -458,19 +458,17 @@ For testing purposes, allows creation or updating of pill logs.
 
 ### User Table
 
-| Column          | Type      | Description                                  |
-|-----------------|-----------|--------------------------------
-
---------------|
-| id              | Integer   | Primary key                                  |
-| fcm_token       | String    | Unique Firebase Cloud Messaging token        |
-| intake_time     | String    | Time of pill intake in HH:MM format           |
-| pill_days       | Integer   | Number of pill days in a cycle                |
-| break_days      | Integer   | Number of break days in a cycle               |
+| Column          | Type      | Description                                      |
+|-----------------|-----------|--------------------------------                  |
+| id              | Integer   | Primary key                                      |
+| fcm_token       | String    | Unique Firebase Cloud Messaging token            |
+| intake_time     | String    | Time of pill intake in HH:MM format              |
+| pill_days       | Integer   | Number of pill days in a cycle                   |
+| break_days      | Integer   | Number of break days in a cycle                  |
 | start_date      | String    | Start date of the user's pill cycle (YYYY-MM-DD) |
-| is_pill_taken   | Boolean   | Whether the user has taken their pill today   |
-| timezone        | String    | User's timezone                              |
-| waiting_for_home| Boolean   | Whether the user is waiting for a home reminder |
+| is_pill_taken   | Boolean   | Whether the user has taken their pill today      |
+| timezone        | String    | User's timezone                                  |
+| waiting_for_home| Boolean   | Whether the user is waiting for a home reminder  |
 
 ### PillLog Table
 
