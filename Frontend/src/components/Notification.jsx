@@ -14,7 +14,7 @@ function Notification() {
         
         // Request the token
         const token = await getToken(messaging, {
-          vapidKey: '***REMOVED***',
+          vapidKey: 'BK0qwUVTs45pLrpte0VlRRYkQyQfzAKwIINcrj_R1B-dtYIWUZKV5aS4F5ii-XhXT5ZSZG9YqLIjBRm54CcVkwI',
           serviceWorkerRegistration: registration, // Pass the service worker registration
         });
 
