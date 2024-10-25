@@ -1,5 +1,5 @@
 
-GoSave is a PWA built using a React and Vite Frontend and a Flask Backend & API which helps users take their pill regularly by introducing regular reminders, flexible Notifications, Logs and Features like reminding based on location.
+[GoSave](gosave.pro) is a PWA built using a React and Vite Frontend and a Flask Backend & API which helps users take their pill regularly by introducing regular reminders, flexible Notifications, Logs and Features like reminding based on location.
 # Table of Contents
 - [Frontend](<#GoSave - Progressive Web App (PWA)>)
 	- [Features](<#Frontend Features>)
