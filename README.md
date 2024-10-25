@@ -1,21 +1,32 @@
 
-# GoSave - Progressive Web App (PWA)
-
-Welcome to the GoSave project! This repository contains the frontend code for a Progressive Web App (PWA) designed to help users manage their pill intake schedule efficiently. The app is built using React and Vite, and it leverages Firebase for notifications and backend communication. 
-
-## Table of Contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Components](#components)
-- [Service Worker](#service-worker)
-- [Firebase Integration](#firebase-integration)
-- [API Endpoints](#api-endpoints)
+GoSave is a PWA built using a React and Vite Frontend and a Flask Backend & API which helps users take their pill regularly by introducing regular reminders, flexible Notifications, Logs and Features like reminding based on location.
+# Table of Contents
+- [Frontend](<#GoSave - Progressive Web App (PWA)>)
+	- [Features](<#Frontend Features>)
+	- [Installation](<#Frontend Installation>)
+	- [Usage](<#Frontend Usage>)
+	- [Components](#components)
+	- [Service Worker](<#service worker>)
+	- [Firebase Integration](<#firebase integration>)
+- [Backend](<#Pill Reminder Backend - Documentation>)
+	- [Prerequisites](#prerequisites)
+	-  [Backend Installation](<#backend installation>)
+	- [API Endpoints](<#api endpoints>)
+	- [Database Structure](<#database structure>)
+	- [Scheduler](#scheduler)
+	- [Error Handling](<#error handling>)
+	- [Firebase Notifications](<#firebase notifications>)
+	- [Time Zones](<#time zones>)
 - [Contributing](#contributing)
 - [License](#license)
 
-## Features
+# GoSave - Progressive Web App (PWA)
+
+This section explains the frontend code for the Progressive Web App (PWA) designed to help users manage their pill intake schedule efficiently. The Frontend is built using React and Vite, and it leverages Firebase for notifications and backend communication. 
+
+
+
+## Frontend Features
 
 - **Progressive Web App (PWA):** GoSave is a PWA, which means it can be installed on your device and used offline.
 - **Location-Based Reminders:** The app can remind users to take their pills when they arrive home using location-based triggers.
@@ -24,8 +35,8 @@ Welcome to the GoSave project! This repository contains the frontend code for a 
 - **Responsive Design:** Built with Tailwind CSS and DaisyUI, the app is fully responsive and works on all device sizes.
 - **User-Friendly Interface:** The app features a clean and intuitive interface, making it easy for users to manage their pill intake schedule.
 
-## Frontend
-### Installation
+
+## Frontend Installation
 
 To get started with the GoSave frontend, follow these steps:
 
@@ -35,10 +46,7 @@ To get started with the GoSave frontend, follow these steps:
    git clone https://github.com/yourusername/gosave.git
    cd gosave/Frontend
    ```
-2. **Add Configuration**
-    - go into `firebase-messaging-sw.js` and `firebase.js` and paste in your Firebase Config.
-    - go into the Notification.jsx Component and paste in your **VapidKey**
-     
+
 2. **Install dependencies:**
 
    ```bash
@@ -63,11 +71,11 @@ To get started with the GoSave frontend, follow these steps:
    npm run preview
    ```
 
-### Usage
+## Frontend Usage
 
 Once the app is running, you can access it in your browser. The app will guide you through setting up your pill intake schedule, including setting reminders for when you arrive home.
 
-### Components
+## Components
 
 The app is composed of several key components:
 
@@ -78,11 +86,11 @@ The app is composed of several key components:
 - **NextNotification:** Displays the next scheduled notification time.
 - **SettingsPanel:** Provides access to user settings, including theme changes and cycle settings.
 
-### Service Worker
+## Service Worker
 
 The app includes a service worker for handling background tasks and notifications. The service worker is registered in `main.jsx` and is responsible for managing Firebase Cloud Messaging.
 
-### Firebase Integration
+## Firebase Integration
 
 GoSave uses Firebase for push notifications. The Firebase configuration is set up in `firebase.js`, and the service worker script is located in `firebase-messaging-sw.js`.
 
@@ -92,13 +100,7 @@ import { initializeApp } from "firebase/app";
 import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: "",
-    measurementId: ""
+    "YOUR FIREBASE CONFIG"
 }
 
 const app = initializeApp(firebaseConfig)
@@ -108,7 +110,7 @@ export { messaging }
 ```
 
 
-# Pill Reminder API - Documentation
+# Pill Reminder Backend - Documentation
 
 This API is designed to manage users' pill reminders by handling notifications, tracking pill intake, and managing user data. The system is based on Flask and SQLAlchemy for the backend, Firebase for notifications, and APScheduler for managing scheduled tasks.
 
@@ -122,7 +124,7 @@ This API is designed to manage users' pill reminders by handling notifications, 
 
 ## Table of Contents
 
-1. [Installation](#installation)
+1. [Backend Installation](#backend-installation)
 2. [API Endpoints](#api-endpoints)
     - [GET /](#get-)
     - [POST /database](#post-database)
@@ -149,38 +151,61 @@ This API is designed to manage users' pill reminders by handling notifications, 
 
 ---
 
-## Installation
+## Backend Installation
 
 1. **Clone the repository:**
+   ```bash
 
-   ```bash
-   git clone https://github.com/your-repo/pill-reminder-api.git
-   cd pill-reminder-api
-   ```
+   git clone https://github.com/amstrdm/pill-tracker.git
 
-2. **Set up virtual environment (optional but recommended):**
+   cd pill-tracker/Frontend
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
+   ```
+
+2. **Add Configuration**
+
+    - go into `firebase-messaging-sw.js` and `firebase.js` and paste in your Firebase Config.
+
+    - go into the Notification.jsx Component and paste in your **VapidKey**
+
+  
 
 3. **Install dependencies:**
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+   ```bash
 
-4. **Set up Firebase Admin SDK:**
+   npm install
 
-   You need a Firebase project with the Firebase Admin SDK setup. Place the `account_key.json` file from Firebase into the `config/` directory and adjust the path in the code if necessary.
+   ```
 
-5. **Run the API:**
+  
 
-   ```bash
-   python app.py
-   ```
+4. **Run the development server:**
 
+   ```bash
+
+   npm run dev
+
+   ```
+
+  
+
+5. **Build for production:**
+
+   ```bash
+
+   npm run build
+
+   ```
+
+  
+
+6. **Preview the production build:**
+   ```bash
+
+   npm run preview
+
+   ```
 ---
 
 ## API Endpoints
@@ -472,7 +497,6 @@ For testing purposes, allows creation or updating of pill logs.
 | is_pill_taken   | Boolean   | Whether the user has taken their pill today      |
 | timezone        | String    | User's timezone                                  |
 | waiting_for_home| Boolean   | Whether the user is waiting for a home reminder  |
-
 ### PillLog Table
 
 | Column          | Type    | Description                             |
@@ -523,11 +547,11 @@ All time-related operations are handled based on the user's specified time zone.
 
 This API is fully equipped to handle pill reminder logic, notification scheduling, and user data management. The flexible architecture supports expansion for additional features such as multiple reminder types and advanced analytics.
 
-## Contributing
+# Contributing
 
 Contributions are welcome! If you'd like to contribute to GoSave, please fork the repository and submit a pull request. For major changes, please open an issue first to discuss what you would like to change.
 
-## License
+# License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
