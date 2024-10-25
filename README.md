@@ -159,59 +159,34 @@ This API is designed to manage users' pill reminders by handling notifications, 
 
 ## Backend Installation
 
-1. **Clone the repository:**
-   ```bash
+1. **Clone the repository**:
+    ```bash
+    git clone <repository_url>
+    cd <repository_name>
+    ```
 
-   git clone https://github.com/amstrdm/pill-tracker.git
+2. **Create and activate a virtual environment** (recommended):
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
 
-   cd pill-tracker/Frontend
+3. **Install dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-   ```
+4. **Set up Firebase Admin SDK**:
+    - Place your Firebase Admin SDK JSON file in the `config/` folder with the name `account_key.json`.
 
-2. **Add Configuration**
+5. **Run the application**:
+    ```bash
+    python app.py
+    ```
 
-    - go into `firebase-messaging-sw.js` and `firebase.js` and paste in your Firebase Config.
+6. **Verify installation**:
+    - Open a browser or tool like Postman and navigate to `http://127.0.0.1:5000/`. You should see a message confirming that the server is up and running.
 
-    - go into the Notification.jsx Component and paste in your **VapidKey**
-
-  
-
-3. **Install dependencies:**
-
-   ```bash
-
-   npm install
-
-   ```
-
-  
-
-4. **Run the development server:**
-
-   ```bash
-
-   npm run dev
-
-   ```
-
-  
-
-5. **Build for production:**
-
-   ```bash
-
-   npm run build
-
-   ```
-
-  
-
-6. **Preview the production build:**
-   ```bash
-
-   npm run preview
-
-   ```
 ---
 
 ## API Endpoints
