@@ -40,6 +40,8 @@ This section explains the frontend code for the Progressive Web App (PWA) design
 
 To get started with the GoSave frontend, follow these steps:
 
+To get started with the GoSave frontend, follow these steps:
+
 1. **Clone the repository:**
 
    ```bash
@@ -47,25 +49,29 @@ To get started with the GoSave frontend, follow these steps:
    cd gosave/Frontend
    ```
 
-2. **Install dependencies:**
+2. **Add Configuration**
+    - go into `firebase-messaging-sw.js` and `firebase.js` and paste in your Firebase Config.
+    - go into the Notification.jsx Component and paste in your **VapidKey**
+
+3. **Install dependencies:**
 
    ```bash
    npm install
    ```
 
-3. **Run the development server:**
+4. **Run the development server:**
 
    ```bash
    npm run dev
    ```
 
-4. **Build for production:**
+5. **Build for production:**
 
    ```bash
    npm run build
    ```
 
-5. **Preview the production build:**
+6. **Preview the production build:**
 
    ```bash
    npm run preview
