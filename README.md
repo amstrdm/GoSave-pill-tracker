@@ -35,7 +35,10 @@ To get started with the GoSave frontend, follow these steps:
    git clone https://github.com/yourusername/gosave.git
    cd gosave/Frontend
    ```
-
+2. **Add Configuration**
+    - go into `firebase-messaging-sw.js` and `firebase.js` and paste in your Firebase Config.
+    - go into the Notification.jsx Component and paste in your **VapidKey**
+     
 2. **Install dependencies:**
 
    ```bash
