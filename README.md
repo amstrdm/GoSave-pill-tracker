@@ -1,26 +1,32 @@
+# GoSave - Never forget your pill again
+
+<p align="center">
+  <img width=350 height=350 src="https://github.com/amstrdm/GoSave-pill-tracker/blob/main/backend/icon.png" />
+</p>
+
 
 [GoSave](https://gosave.pro) is a PWA built using a React and Vite Frontend and a Flask Backend & API which helps users take their pill regularly by introducing regular reminders, flexible Notifications, Logs and Features like reminding based on location. You can try GoSave at [gosave.pro](https://gosave.pro). (Note: New Features/Bug Fixes will be available on the website first and will be pushed to the public repo after)
 # Table of Contents
-- [Frontend](<#GoSave - Progressive Web App (PWA)>)
-	- [Features](<#Frontend Features>)
-	- [Installation](<#Frontend Installation>)
-	- [Usage](<#Frontend Usage>)
+- [Frontend](#frontend)
+	- [Features](#frontend-features)
+	- [Installation](#frontend-installation)
+	- [Usage](#frontend-usage)
 	- [Components](#components)
-	- [Service Worker](<#service worker>)
-	- [Firebase Integration](<#firebase integration>)
-- [Backend](<#Pill Reminder Backend - Documentation>)
+	- [Service Worker](#service-worker)
+	- [Firebase Integration](#firebase-integration)
+- [Backend](#pill-reminder-backend)
 	- [Prerequisites](#prerequisites)
-	-  [Backend Installation](<#backend installation>)
-	- [API Endpoints](<#api endpoints>)
-	- [Database Structure](<#database structure>)
+	-  [Backend Installation](#backend-installation)
+	- [API Endpoints](#api-endpoints)
+	- [Database Structure](#database-structure)
 	- [Scheduler](#scheduler)
-	- [Error Handling](<#error handling>)
-	- [Firebase Notifications](<#firebase notifications>)
-	- [Time Zones](<#time zones>)
+	- [Error Handling](#error-handling)
+	- [Firebase Notifications](#firebase-notifications)
+	- [Time Zones](#time-zones)
 - [Contributing](#contributing)
 - [License](#license)
 
-# GoSave - Progressive Web App (PWA)
+# Frontend
 
 This section explains the frontend code for the Progressive Web App (PWA) designed to help users manage their pill intake schedule efficiently. The Frontend is built using React and Vite, and it leverages Firebase for notifications and backend communication. 
 
@@ -116,7 +122,7 @@ export { messaging }
 ```
 
 
-# Pill Reminder Backend - Documentation
+# Pill Reminder Backend
 
 This API is designed to manage users' pill reminders by handling notifications, tracking pill intake, and managing user data. The system is based on Flask and SQLAlchemy for the backend, Firebase for notifications, and APScheduler for managing scheduled tasks.
 
