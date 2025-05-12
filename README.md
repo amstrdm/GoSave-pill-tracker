@@ -4,6 +4,10 @@
   <img width=350 height=350 src="https://github.com/amstrdm/GoSave-pill-tracker/blob/main/backend/icon.png" />
 </p>
 
+> 🚧 **Service Unavailable**  
+> **gosave** is currently down due to issues with the VPS hosting provider.  
+> I'm working to resolve this and will restore service as soon as possible.  
+> Thank you for your patience!
 
 [GoSave](https://gosave.pro) is a PWA built using a React and Vite Frontend and a Flask Backend & API which helps users take their pill regularly by introducing regular reminders, flexible Notifications, Logs and Features like reminding based on location. You can try GoSave at [gosave.pro](https://gosave.pro). (Note: New Features/Bug Fixes will be available on the website first and will be pushed to the public repo after)
 # Table of Contents
